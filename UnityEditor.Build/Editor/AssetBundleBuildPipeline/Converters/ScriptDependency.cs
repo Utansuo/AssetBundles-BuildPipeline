@@ -5,32 +5,47 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class ScriptDependency : IDataConverter<ScriptCompilationSettings, string, ScriptCompilationResult>
+    public class ScriptDependency : ADataConverter<ScriptCompilationSettings, string, ScriptCompilationResult>
     {
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
 
-        private Hash128 CalculateInputHash(ScriptCompilationSettings settings, bool useCache)
+        // TODO: Figure out a way to cache script compiling
+        public ScriptDependency(bool useCache, IProgressTracker progressTracker) : base(false, progressTracker) { }
+
+        // TODO: Figure out a way to cache script compiling
+        public override bool UseCache
         {
-            if (!useCache)
+            get { return base.UseCache; }
+            set { base.UseCache = false; }
+        }
+
+        private Hash128 CalculateInputHash(ScriptCompilationSettings settings)
+        {
+            if (!UseCache)
                 return new Hash128();
 
             // TODO: Figure out a way to cache script compiling
             return new Hash128();
         }
 
-        public bool Convert(ScriptCompilationSettings settings, string outputFolder, out ScriptCompilationResult output, bool useCache = true)
+        public override bool Convert(ScriptCompilationSettings settings, string outputFolder, out ScriptCompilationResult output)
         {
-            // TODO: Figure out a way to cache script compiling
-            useCache = false;
+            StartProgressBar("Compiling Player Scripts", 1);
 
-            Hash128 hash = CalculateInputHash(settings, useCache);
-            if (useCache && TryLoadFromCache(hash, outputFolder, out output))
+            UpdateProgressBar("");
+            Hash128 hash = CalculateInputHash(settings);
+            if (UseCache && TryLoadFromCache(hash, outputFolder, out output))
+            {
+                EndProgressBar();
                 return true;
+            }
 
             output = PlayerBuildInterface.CompilePlayerScripts(settings, outputFolder);
 
-            if (useCache && !TrySaveToCache(hash, output, outputFolder))
+            if (UseCache && !TrySaveToCache(hash, output, outputFolder))
                 BuildLogger.LogWarning("Unable to cache ScriptDependency results.");
+
+            EndProgressBar();
             return true;
         }
 

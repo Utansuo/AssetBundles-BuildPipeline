@@ -9,20 +9,25 @@ using SpriteRefMap = System.Collections.Generic.Dictionary<UnityEditor.Experimen
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class SpriteSourceProcessor : IDataConverter<AssetInfoMap, AssetInfoMap>
+    public class SpriteSourceProcessor : ADataConverter<AssetInfoMap, AssetInfoMap>
     {
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
 
-        private Hash128 CalculateInputHash(AssetInfoMap assetLoadInfo, SpriteRefMap spriteRefCount, bool useCache)
+        public SpriteSourceProcessor(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        private Hash128 CalculateInputHash(AssetInfoMap assetLoadInfo, SpriteRefMap spriteRefCount)
         {
-            if (!useCache)
+            if (!UseCache)
                 return new Hash128();
-            
+
             return HashingMethods.CalculateMD5Hash(Version, assetLoadInfo, spriteRefCount);
         }
 
-        public bool Convert(AssetInfoMap assetLoadInfo, out AssetInfoMap output, bool useCache = true)
+        public override bool Convert(AssetInfoMap assetLoadInfo, out AssetInfoMap output)
         {
+            StartProgressBar("Stripping unused sprite source textures", 3);
+
+            UpdateProgressBar("Finding sprite source textures");
             var spriteRefCount = new Dictionary<ObjectIdentifier, int>();
             foreach (var assetInfo in assetLoadInfo)
             {
@@ -32,13 +37,17 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     spriteRefCount[assetInfo.Value.includedObjects[0]] = 0;
             }
 
-            Hash128 hash = CalculateInputHash(assetLoadInfo, spriteRefCount, useCache);
-            if (useCache && BuildCache.TryLoadCachedResults(hash, out output))
+            Hash128 hash = CalculateInputHash(assetLoadInfo, spriteRefCount);
+            if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
+            {
+                EndProgressBar();
                 return true;
+            }
 
             // Mutating the input, this is the only converter that does this
             output = assetLoadInfo;
 
+            UpdateProgressBar("Finding sprite source textures usage");
             foreach (var assetInfo in output)
             {
                 if (!string.IsNullOrEmpty(assetInfo.Value.processedScene))
@@ -55,6 +64,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 }
             }
 
+            UpdateProgressBar("Removing unused sprite source textures.");
             foreach (var source in spriteRefCount)
             {
                 if (source.Value > 0)
@@ -68,8 +78,10 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 output[source.Key.guid] = assetInfo;
             }
 
-            if (useCache && !BuildCache.SaveCachedResults(hash, output))
+            if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache SpriteSourceProcessor results.");
+
+            EndProgressBar();
             return true;
         }
     }

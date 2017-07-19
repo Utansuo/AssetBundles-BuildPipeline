@@ -53,7 +53,7 @@ namespace UnityEditor.Build
                 compression = BuildCompression.DefaultUncompressed;
 
             BuildInput buildInput;
-            var converter = new AssetBundleBuildConverter();
+            var converter = new AssetBundleBuildConverter(false, null);
             if (!converter.Convert(builds, out buildInput))
                 return null;
 

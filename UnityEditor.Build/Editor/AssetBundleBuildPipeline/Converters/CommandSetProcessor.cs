@@ -9,25 +9,32 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class CommandSetProcessor : IDataConverter<BuildInput, BuildDependencyInformation, BuildCommandSet>
+    public class CommandSetProcessor : ADataConverter<BuildInput, BuildDependencyInformation, BuildCommandSet>
     {
         private const string kUnityDefaultResourcePath = "library/unity default resources";
 
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
 
-        private Hash128 CalculateInputHash(BuildInput input, BuildDependencyInformation buildInfo, bool useCache)
+        public CommandSetProcessor(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+        
+        private Hash128 CalculateInputHash(BuildInput input, BuildDependencyInformation buildInfo)
         {
-            if (!useCache)
+            if (!UseCache)
                 return new Hash128();
 
             return HashingMethods.CalculateMD5Hash(Version, input, buildInfo.assetLoadInfo, buildInfo.assetToBundle, buildInfo.sceneUsageTags);
         }
 
-        public bool Convert(BuildInput input, BuildDependencyInformation buildInfo, out BuildCommandSet output, bool useCache = true)
+        public override bool Convert(BuildInput input, BuildDependencyInformation buildInfo, out BuildCommandSet output)
         {
-            Hash128 hash = CalculateInputHash(input, buildInfo, useCache);
-            if (useCache && BuildCache.TryLoadCachedResults(hash, out output))
+            StartProgressBar("Generating Build Commands", buildInfo.assetLoadInfo.Count);
+
+            Hash128 hash = CalculateInputHash(input, buildInfo);
+            if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
+            {
+                EndProgressBar();
                 return true;
+            }
             
             var commands = new List<BuildCommandSet.Command>();
 
@@ -43,6 +50,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 {
                     var assetInfo = buildInfo.assetLoadInfo[asset.asset];
                     explicitAssets.Add(assetInfo);
+                    UpdateProgressBar(assetInfo.asset);
 
                     foreach (var includedObject in assetInfo.includedObjects)
                     {
@@ -98,8 +106,10 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             output = new BuildCommandSet();
             output.commands = commands.ToArray();
 
-            if (useCache && !BuildCache.SaveCachedResults(hash, output))
+            if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache CommandSetProcessor results.");
+
+            EndProgressBar();
             return true;
         }
 
@@ -151,6 +161,15 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return x.serializationIndex.CompareTo(y.serializationIndex);
 
             return Compare(x.serializationObject, y.serializationObject);
+        }
+
+        private bool UpdateProgressBar(GUID guid)
+        {
+            if (ProgressTracker == null)
+                return true;
+
+            var path = AssetDatabase.GUIDToAssetPath(guid.ToString());
+            return ProgressTracker.UpdateProgress(path);
         }
     }
 }

@@ -5,9 +5,11 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class SceneDependency : IDataConverter<GUID, BuildSettings, string, SceneLoadInfo>
+    public class SceneDependency : ADataConverter<GUID, BuildSettings, string, SceneLoadInfo>
     {
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
+
+        public SceneDependency(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
         public static bool ValidScene(GUID asset)
         {
@@ -18,37 +20,45 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return true;
         }
 
-        private Hash128 CalculateInputHash(GUID asset, BuildSettings settings, bool useCache)
+        private Hash128 CalculateInputHash(GUID asset, BuildSettings settings)
         {
-            if (!useCache)
+            if (!UseCache)
                 return new Hash128();
 
             var path = AssetDatabase.GUIDToAssetPath(asset.ToString());
             var assetHash = AssetDatabase.GetAssetDependencyHash(path).ToString();
             var dependencies = AssetDatabase.GetDependencies(path);
             var dependencyHashes = new string[dependencies.Length];
-            for(var i = 0; i < dependencies.Length; ++i)
+            for (var i = 0; i < dependencies.Length; ++i)
                 dependencyHashes[i] = AssetDatabase.GetAssetDependencyHash(dependencies[i]).ToString();
             return HashingMethods.CalculateMD5Hash(Version, assetHash, dependencyHashes, settings);
         }
 
-        public bool Convert(GUID scene, BuildSettings settings, string outputFolder, out SceneLoadInfo output, bool useCache = true)
+        public override bool Convert(GUID scene, BuildSettings settings, string outputFolder, out SceneLoadInfo output)
         {
+            StartProgressBar("Calculating Scene Dependencies", 1);
             if (!ValidScene(scene))
             {
                 output = new SceneLoadInfo();
                 return false;
             }
 
-            Hash128 hash = CalculateInputHash(scene, settings, useCache);
-            if (useCache && TryLoadFromCache(hash, outputFolder, out output))
-                return true;
-
             var scenePath = AssetDatabase.GUIDToAssetPath(scene.ToString());
+            UpdateProgressBar(scenePath);
+
+            Hash128 hash = CalculateInputHash(scene, settings);
+            if (UseCache && TryLoadFromCache(hash, outputFolder, out output))
+            {
+                EndProgressBar();
+                return true;
+            }
+
             output = BuildInterface.PrepareScene(scenePath, settings, outputFolder);
 
-            if (useCache && !BuildCache.SaveCachedResults(hash, output))
+            if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache SceneDependency results for asset '{0}'.", scene);
+
+            EndProgressBar();
             return true;
         }
 
@@ -59,7 +69,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
             if (!BuildCache.TryLoadCachedResultsAndArtifacts(hash, out output, out artifactPaths, out rootCachePath))
                 return false;
-            
+
             Directory.CreateDirectory(outputFolder);
 
             foreach (var artifact in artifactPaths)

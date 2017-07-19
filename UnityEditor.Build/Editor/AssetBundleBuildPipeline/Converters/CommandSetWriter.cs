@@ -6,16 +6,18 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class CommandSetWriter : IDataConverter<BuildCommandSet, BuildSettings, string, BuildOutput>
+    public class CommandSetWriter : ADataConverter<BuildCommandSet, BuildSettings, string, BuildOutput>
     {
         private Dictionary<string, BuildCommandSet.Command> m_NameToBundle = new Dictionary<string, BuildCommandSet.Command>();
         private Dictionary<string, HashSet<string>> m_NameToDependentSet = new Dictionary<string, HashSet<string>>();
 
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
 
-        private Hash128 CalculateInputHash(BuildCommandSet.Command command, BuildSettings settings, bool useCache)
+        public CommandSetWriter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        private Hash128 CalculateInputHash(BuildCommandSet.Command command, BuildSettings settings)
         {
-            if (!useCache)
+            if (!UseCache)
                 return new Hash128();
 
             // NOTE: correct hash should be based off command, command dependencies, dependent commands, build target, build group, and build typedb
@@ -24,14 +26,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             var bundles = new List<BuildCommandSet.Command>();
             foreach (var bundle in bundleSet)
                 bundles.Add(m_NameToBundle[bundle]);
-            // Asset hash
+            // TODO: Asset hash
 
             return HashingMethods.CalculateMD5Hash(Version, bundles, settings);
         }
 
-        private void CacheDataForCommandSet(BuildCommandSet commandSet, bool useCache)
+        private void CacheDataForCommandSet(BuildCommandSet commandSet)
         {
-            if (!useCache)
+            if (!UseCache)
                 return;
             
             // Generate data needed for cache hash generation
@@ -67,16 +69,18 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             }
         }
 
-        public bool Convert(BuildCommandSet commandSet, BuildSettings settings, string outputFolder, out BuildOutput output, bool useCache = true)
+        public override bool Convert(BuildCommandSet commandSet, BuildSettings settings, string outputFolder, out BuildOutput output)
         {
-            CacheDataForCommandSet(commandSet, useCache);
+            StartProgressBar("Writing Resource Files", commandSet.commands.Length);
+            CacheDataForCommandSet(commandSet);
 
             var results = new List<BuildOutput.Result>();
             foreach (var command in commandSet.commands)
             {
+                UpdateProgressBar(string.Format("Bundle: {0}", command.assetBundleName));
                 BuildOutput result;
-                Hash128 hash = CalculateInputHash(command, settings, useCache);
-                if (useCache && TryLoadFromCache(hash, outputFolder, out result))
+                Hash128 hash = CalculateInputHash(command, settings);
+                if (UseCache && TryLoadFromCache(hash, outputFolder, out result))
                 {
                     results.AddRange(result.results);
                     continue;
@@ -85,12 +89,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 result = BuildInterface.WriteResourceFilesForBundle(commandSet, command.assetBundleName, settings, outputFolder);
                 results.AddRange(result.results);
 
-                if (useCache && !TrySaveToCache(hash, result, outputFolder))
+                if (UseCache && !TrySaveToCache(hash, result, outputFolder))
                     BuildLogger.LogWarning("Unable to cache CommandSetWriter results for command '{0}'.", command.assetBundleName);
             }
 
             output = new BuildOutput();
             output.results = results.ToArray();
+            EndProgressBar();
             return true;
         }
 

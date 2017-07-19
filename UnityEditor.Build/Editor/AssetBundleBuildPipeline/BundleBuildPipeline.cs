@@ -38,7 +38,7 @@ namespace UnityEditor.Build.AssetBundle
         {
             var buildTimer = new Stopwatch();
             buildTimer.Start();
-            
+
             var playerSettings = GeneratePlayerBuildSettings();
             var playerResults = PlayerBuildInterface.CompilePlayerScripts(playerSettings, kTempPlayerBuildPath);
             if (Directory.Exists(kTempPlayerBuildPath))
@@ -48,66 +48,69 @@ namespace UnityEditor.Build.AssetBundle
 
             var bundleSettings = GenerateBundleBuildSettings();
             bundleSettings.typeDB = playerResults.typeDB;
-            
+
             var bundleCompression = BuildCompression.DefaultUncompressed;
 
             var success = BuildAssetBundles(bundleInput, bundleSettings, kDefaultOutputPath, bundleCompression);
-            
+
             buildTimer.Stop();
             BuildLogger.Log("Build Asset Bundles {0} in: {1:c}", success ? "completed" : "failed", buildTimer.Elapsed);
         }
 
         public static bool BuildAssetBundles(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache = true)
         {
-            // Rebuild sprite atlas cache for correct dependency calculation & writing
-            Packer.RebuildAtlasCacheIfNeeded(settings.target, true, Packer.Execution.Normal);
-            
-            // TODO: Backup Active Scenes
+            using (var progressTracker = new BuildProgressTracker(6))
+            {
+                progressTracker.StartStep("Rebuilding Atlas Cache", 1);
+                // Rebuild sprite atlas cache for correct dependency calculation & writing
+                Packer.RebuildAtlasCacheIfNeeded(settings.target, true, Packer.Execution.Normal);
 
-            BuildDependencyInformation buildInfo;
-            var buildInputDependency = new BuildInputDependency();
-            if (!buildInputDependency.Convert(input, settings, kTempBundleBuildPath, out buildInfo, useCache))
-                return false;
+                // TODO: Backup Active Scenes
 
-            // Strip out sprite source textures if nothing references them directly
-            var spriteSourceProcessor = new SpriteSourceProcessor();
-            if (!spriteSourceProcessor.Convert(buildInfo.assetLoadInfo, out buildInfo.assetLoadInfo, useCache))
-                return false;
+                BuildDependencyInformation buildInfo;
+                var buildInputDependency = new BuildInputDependency(useCache, progressTracker);
+                if (!buildInputDependency.Convert(input, settings, kTempBundleBuildPath, out buildInfo))
+                    return false;
 
-            // Generate optional shared asset bundles
-            //var sharedObjectProcessor = new SharedObjectProcessor();
-            //if (!sharedObjectProcessor.Convert(buildInfo, out buildInfo))
-            //    return false;
+                // Strip out sprite source textures if nothing references them directly
+                var spriteSourceProcessor = new SpriteSourceProcessor(useCache, progressTracker);
+                if (!spriteSourceProcessor.Convert(buildInfo.assetLoadInfo, out buildInfo.assetLoadInfo))
+                    return false;
 
-            // Generate the commandSet from the calculated dependency information
-            BuildCommandSet commandSet;
-            var commandSetProcessor = new CommandSetProcessor();
-            if (!commandSetProcessor.Convert(input, buildInfo, out commandSet, useCache))
-                return false;
+                // Generate optional shared asset bundles
+                //var sharedObjectProcessor = new SharedObjectProcessor();
+                //if (!sharedObjectProcessor.Convert(buildInfo, out buildInfo))
+                //    return false;
 
-            // Write out resource files
-            BuildOutput output;
-            var commandSetWriter = new CommandSetWriter();
-            if (!commandSetWriter.Convert(commandSet, settings, kTempBundleBuildPath, out output, useCache))
-                return false;
+                // Generate the commandSet from the calculated dependency information
+                BuildCommandSet commandSet;
+                var commandSetProcessor = new CommandSetProcessor(useCache, progressTracker);
+                if (!commandSetProcessor.Convert(input, buildInfo, out commandSet))
+                    return false;
 
-            // TODO: Restore Active Scenes
+                // Write out resource files
+                BuildOutput output;
+                var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
+                if (!commandSetWriter.Convert(commandSet, settings, kTempBundleBuildPath, out output))
+                    return false;
 
-            // Archive and compress resource files
-            var bundleCRCs = new Dictionary<string, uint>();
-            var resourceArchiver = new ResourceFileArchiver();
-            if (!resourceArchiver.Convert(output, buildInfo.sceneResourceFiles, compression, outputFolder, out bundleCRCs, useCache))
-                return false;
+                // TODO: Restore Active Scenes
 
-            if (Directory.Exists(kTempBundleBuildPath))
-                Directory.Delete(kTempBundleBuildPath, true);
+                // Archive and compress resource files
+                var bundleCRCs = new Dictionary<string, uint>();
+                var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
+                if (!resourceArchiver.Convert(output, buildInfo.sceneResourceFiles, compression, outputFolder, out bundleCRCs))
+                    return false;
 
-            // Generate Unity5 compatible manifest files
-            //string[] manifestfiles;
-            //var manifestWriter = new Unity5ManifestWriter();
-            //if (!manifestWriter.Convert(commandSet, output, crc, outputFolder, out manifestfiles))
-            //    return false;
+                if (Directory.Exists(kTempBundleBuildPath))
+                    Directory.Delete(kTempBundleBuildPath, true);
 
+                // Generate Unity5 compatible manifest files
+                //string[] manifestfiles;
+                //var manifestWriter = new Unity5ManifestWriter(useCache, true);
+                //if (!manifestWriter.Convert(commandSet, output, crc, outputFolder, out manifestfiles))
+                //    return false;
+            }
             return true;
         }
 
@@ -190,7 +193,7 @@ namespace UnityEditor.Build.AssetBundle
                     {
                         stream.Write("\tAsset Bundle Objects:\n");
                         foreach (var obj in bundle.assetBundleObjects)
-                           stream.Write("\t\t{0}: {1}\n", obj.serializationIndex, obj.serializationObject);
+                            stream.Write("\t\t{0}: {1}\n", obj.serializationIndex, obj.serializationObject);
                     }
 
                     if (!bundle.assetBundleDependencies.IsNullOrEmpty())

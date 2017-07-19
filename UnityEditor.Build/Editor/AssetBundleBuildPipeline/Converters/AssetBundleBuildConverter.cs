@@ -4,24 +4,31 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class AssetBundleBuildConverter : IDataConverter<AssetBundleBuild[], BuildInput>
+    public class AssetBundleBuildConverter : ADataConverter<AssetBundleBuild[], BuildInput>
     {
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
 
-        private Hash128 CalculateInputHash(AssetBundleBuild[] input, bool useCache)
+        public AssetBundleBuildConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        private Hash128 CalculateInputHash(AssetBundleBuild[] input)
         {
-            if (!useCache)
+            if (!UseCache)
                 return new Hash128();
 
             return HashingMethods.CalculateMD5Hash(Version, input);
         }
 
-        public bool Convert(AssetBundleBuild[] input, out BuildInput output, bool useCache = true)
+        public override bool Convert(AssetBundleBuild[] input, out BuildInput output)
         {
+            StartProgressBar(input);
+
             // If enabled, try loading from cache
-            var hash = CalculateInputHash(input, useCache);
-            if (useCache && BuildCache.TryLoadCachedResults(hash, out output))
+            var hash = CalculateInputHash(input);
+            if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
+            {
+                EndProgressBar();
                 return true;
+            }
 
             // Convert inputs
             output = new BuildInput();
@@ -39,19 +46,33 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 output.definitions[i].explicitAssets = new BuildInput.AddressableAsset[input[i].assetNames.Length];
                 for (var j = 0; j < input.Length; j++)
                 {
-                    var path = AssetDatabase.AssetPathToGUID(input[i].assetNames[j]);
-                    output.definitions[i].explicitAssets[j].asset = new GUID(path);
+                    UpdateProgressBar(input[i].assetNames[j]);
+                    var guid = AssetDatabase.AssetPathToGUID(input[i].assetNames[j]);
+                    output.definitions[i].explicitAssets[j].asset = new GUID(guid);
                     if (input[i].addressableNames.IsNullOrEmpty() || input[i].addressableNames.Length <= j || string.IsNullOrEmpty(input[i].addressableNames[j]))
-                        output.definitions[i].explicitAssets[j].address = path;
+                        output.definitions[i].explicitAssets[j].address = input[i].assetNames[j];
                     else
                         output.definitions[i].explicitAssets[j].address = input[i].addressableNames[j];
                 }
             }
 
             // Cache results
-            if (useCache && !BuildCache.SaveCachedResults(hash, output))
+            if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetBundleBuildConverter results.");
+
+            EndProgressBar();
             return true;
+        }
+
+        private void StartProgressBar(AssetBundleBuild[] input)
+        {
+            if (ProgressTracker == null)
+                return;
+
+            var progressCount = 0;
+            foreach (var bundle in input)
+                progressCount += bundle.assetNames.Length;
+            StartProgressBar("Converting AssetBundleBuild data", progressCount);
         }
     }
 }

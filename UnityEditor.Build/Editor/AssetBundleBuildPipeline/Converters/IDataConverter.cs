@@ -1,29 +1,80 @@
-﻿using UnityEngine;
+﻿using UnityEditor.Build.Utilities;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
     public interface IDataConverter
     {
         uint Version { get; }
+
+        bool UseCache { get; set; }
+
+        IProgressTracker ProgressTracker { get; set; }
     }
 
-    public interface IDataConverter<in I, O> : IDataConverter
+    public abstract class ADataConverter : IDataConverter
     {
-        bool Convert(I input, out O output, bool useCache = true);
+        public abstract uint Version { get; }
+
+        public virtual bool UseCache { get; set; }
+
+        public virtual IProgressTracker ProgressTracker { get; set; }
+
+        public ADataConverter(bool useCache, IProgressTracker progressTracker)
+        {
+            UseCache = useCache;
+            ProgressTracker = progressTracker;
+        }
+
+        public virtual void StartProgressBar(string title, int progressCount)
+        {
+            if (ProgressTracker == null)
+                return;
+
+            ProgressTracker.StartStep(title, progressCount);
+        }
+
+        public virtual bool UpdateProgressBar(string info)
+        {
+            if (ProgressTracker == null)
+                return true;
+
+            return ProgressTracker.UpdateProgress(info);
+        }
+
+        public virtual void EndProgressBar()
+        {
+            if (ProgressTracker == null)
+                return;
+
+            ProgressTracker.EndProgress();
+        }
     }
 
-    public interface IDataConverter<in I1, in I2, O1> : IDataConverter
+    public abstract class ADataConverter<I, O> : ADataConverter
     {
-        bool Convert(I1 input, I2 input2, out O1 output, bool useCache = true);
+        public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        public abstract bool Convert(I input, out O output);
     }
 
-    public interface IDataConverter<in I1, in I2, in I3, O1> : IDataConverter
+    public abstract class ADataConverter<I1, I2, O1> : ADataConverter
     {
-        bool Convert(I1 input, I2 input2, I3 input3, out O1 output, bool useCache = true);
+        public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        public abstract bool Convert(I1 input, I2 input2, out O1 output);
     }
 
-    public interface IDataConverter<in I1, in I2, in I3, in I4, O1> : IDataConverter
+    public abstract class ADataConverter<I1, I2, I3, O1> : ADataConverter
     {
-        bool Convert(I1 input, I2 input2, I3 input3, I4 input4, out O1 output, bool useCache = true);
+        public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        public abstract bool Convert(I1 input, I2 input2, I3 input3, out O1 output);
+    }
+
+    public abstract class ADataConverter<I1, I2, I3, I4, O1> : ADataConverter
+    {
+        public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
+
+        public abstract bool Convert(I1 input, I2 input2, I3 input3, I4 input4, out O1 output);
     }
 }

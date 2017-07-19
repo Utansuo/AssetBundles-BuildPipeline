@@ -5,9 +5,11 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class AssetDependency : IDataConverter<GUID, BuildSettings, BuildCommandSet.AssetLoadInfo>
+    public class AssetDependency : ADataConverter<GUID, BuildSettings, BuildCommandSet.AssetLoadInfo>
     {
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
+
+        public AssetDependency(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
         public static bool ValidAsset(GUID asset)
         {
@@ -18,9 +20,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return true;
         }
 
-        private Hash128 CalculateInputHash(GUID asset, BuildSettings settings, bool useCache)
+        private Hash128 CalculateInputHash(GUID asset, BuildSettings settings)
         {
-            if (!useCache)
+            if (!UseCache)
                 return new Hash128();
 
             var path = AssetDatabase.GUIDToAssetPath(asset.ToString());
@@ -32,22 +34,34 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, assetHash, dependencyHashes, settings);
         }
 
-        public bool Convert(GUID asset, BuildSettings settings, out BuildCommandSet.AssetLoadInfo output, bool useCache = true)
+        public override bool Convert(GUID asset, BuildSettings settings, out BuildCommandSet.AssetLoadInfo output)
         {
+            StartProgressBar("Calculating Asset Dependencies", 2);
+
             output = new BuildCommandSet.AssetLoadInfo();
             if (!ValidAsset(asset))
+            {
+                EndProgressBar();
                 return false;
+            }
 
-            Hash128 hash = CalculateInputHash(asset, settings, useCache);
-            if (useCache && BuildCache.TryLoadCachedResults(hash, out output))
+            Hash128 hash = CalculateInputHash(asset, settings);
+            if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
+            {
+                EndProgressBar();
                 return true;
+            }
 
             output.asset = asset;
+            UpdateProgressBar("Calculating included objects");
             output.includedObjects = BuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);
+            UpdateProgressBar("Calculating referenced objects");
             output.referencedObjects = BuildInterface.GetPlayerDependenciesForObjects(output.includedObjects, settings.target, settings.typeDB);
 
-            if (useCache && !BuildCache.SaveCachedResults(hash, output))
+            if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetDependency results for asset '{0}'.", asset);
+
+            EndProgressBar();
             return true;
         }
     }
