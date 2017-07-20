@@ -69,7 +69,7 @@ namespace UnityEditor.Build.AssetBundle
             return success;
         }
 
-        private static bool BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache)
+        internal static bool BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache)
         {
             using (var progressTracker = new BuildProgressTracker(7))
             {

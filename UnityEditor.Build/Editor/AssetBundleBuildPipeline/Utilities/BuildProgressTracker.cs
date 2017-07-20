@@ -31,8 +31,8 @@ namespace UnityEditor.Build.Utilities
 
         public bool UpdateProgress(string info)
         {
-            m_CurrentProgress++;
             float progress = (float)m_CurrentProgress / (float)ProgressCount;
+            m_CurrentProgress++;
             return !EditorUtility.DisplayCancelableProgressBar(m_StepTitle, info, progress);
         }
 

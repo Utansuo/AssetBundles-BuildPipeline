@@ -18,6 +18,7 @@ namespace UnityEditor.Build
             public BuildTargetGroup buildGroup;
             public CompressionType compressionType;
             public bool useBuildCache;
+            public bool useExperimentalPipeline;
             public string outputPath;
         }
 
@@ -29,6 +30,7 @@ namespace UnityEditor.Build
         SerializedProperty m_GroupProp;
         SerializedProperty m_CompressionProp;
         SerializedProperty m_CacheProp;
+        SerializedProperty m_ExpProp;
         SerializedProperty m_OutputProp;
 
         // Add menu named "My Window" to the Window menu
@@ -39,6 +41,7 @@ namespace UnityEditor.Build
             var window = GetWindow<DebugBundleBuildWindow>("Debug Build");
             window.m_Settings.buildTarget = EditorUserBuildSettings.activeBuildTarget;
             window.m_Settings.buildGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
+            window.m_Settings.useExperimentalPipeline = true;
 
             window.Show();
         }
@@ -50,6 +53,7 @@ namespace UnityEditor.Build
             m_GroupProp = m_SerializedObject.FindProperty("m_Settings.buildGroup");
             m_CompressionProp = m_SerializedObject.FindProperty("m_Settings.compressionType");
             m_CacheProp = m_SerializedObject.FindProperty("m_Settings.useBuildCache");
+            m_ExpProp = m_SerializedObject.FindProperty("m_Settings.useExperimentalPipeline");
             m_OutputProp = m_SerializedObject.FindProperty("m_Settings.outputPath");
         }
 
@@ -61,6 +65,7 @@ namespace UnityEditor.Build
             EditorGUILayout.PropertyField(m_GroupProp);
             EditorGUILayout.PropertyField(m_CompressionProp);
             EditorGUILayout.PropertyField(m_CacheProp);
+            EditorGUILayout.PropertyField(m_ExpProp);
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PropertyField(m_OutputProp);
@@ -108,16 +113,22 @@ namespace UnityEditor.Build
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var playerSettings = BundleBuildPipeline.GeneratePlayerBuildSettings();
-            playerSettings.target = m_Settings.buildTarget;
-            var playerResults = PlayerBuildInterface.CompilePlayerScripts(playerSettings, BundleBuildPipeline.kTempPlayerBuildPath);
-            if (Directory.Exists(BundleBuildPipeline.kTempPlayerBuildPath))
-                Directory.Delete(BundleBuildPipeline.kTempPlayerBuildPath, true);
 
+            var success = true;
+            if (m_Settings.useExperimentalPipeline)
+                success = ExperimentalBuildPipeline();
+            else
+                success = LegacyBuildPipeline();
+
+            buildTimer.Stop();
+            BuildLogger.Log("Build Asset Bundles {0} in: {1:c}", success ? "completed" : "failed", buildTimer.Elapsed);
+        }
+
+        private bool ExperimentalBuildPipeline()
+        {
             var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings();
             bundleSettings.target = m_Settings.buildTarget;
             bundleSettings.group = m_Settings.buildGroup;
-            bundleSettings.typeDB = playerResults.typeDB;
 
             BuildCompression compression;
             switch (m_Settings.compressionType)
@@ -133,10 +144,24 @@ namespace UnityEditor.Build
                     break;
             }
 
-            var success = BundleBuildPipeline.BuildAssetBundles(BundleBuildInterface.GenerateBuildInput(), bundleSettings, m_Settings.outputPath, compression, m_Settings.useBuildCache);
+            var success = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, m_Settings.outputPath, compression, m_Settings.useBuildCache);
+            return success;
+        }
 
-            buildTimer.Stop();
-            BuildLogger.Log("Build Asset Bundles {0} in: {1:c}", success ? "completed" : "failed", buildTimer.Elapsed);
+        private bool LegacyBuildPipeline()
+        {
+            var options = BuildAssetBundleOptions.None;
+            if (m_Settings.compressionType == CompressionType.None)
+                options |= BuildAssetBundleOptions.UncompressedAssetBundle;
+            else if (m_Settings.compressionType == CompressionType.Lz4HC || m_Settings.compressionType == CompressionType.Lz4)
+                options |= BuildAssetBundleOptions.ChunkBasedCompression;
+
+            if (!m_Settings.useBuildCache)
+                options |= BuildAssetBundleOptions.ForceRebuildAssetBundle;
+
+            Directory.CreateDirectory(m_Settings.outputPath);
+            var manifest = BuildPipeline.BuildAssetBundles(m_Settings.outputPath, options, m_Settings.buildTarget);
+            return manifest != null;
         }
     }
 }

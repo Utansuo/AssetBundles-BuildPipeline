@@ -50,7 +50,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                         var assetInfo = new BuildCommandSet.AssetLoadInfo();
                         assetInfo.asset = asset.asset;
-                        assetInfo.address = asset.address;
+                        assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
                         assetInfo.processedScene = sceneInfo.processedScene;
                         assetInfo.includedObjects = new ObjectIdentifier[0];
                         assetInfo.referencedObjects = sceneInfo.referencedObjects;
@@ -68,7 +68,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         if (!m_AssetDependency.Convert(asset.asset, settings, out assetInfo))
                             continue;
 
-                        assetInfo.address = asset.address;
+                        assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
                         output.assetLoadInfo.Add(asset.asset, assetInfo);
                         output.assetToBundle.Add(asset.asset, bundle.assetBundleName);
                     }
