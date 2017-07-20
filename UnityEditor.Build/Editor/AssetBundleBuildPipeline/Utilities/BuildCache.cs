@@ -21,7 +21,7 @@ namespace UnityEditor.Build.Utilities
             return string.Format("{0}/{1}/{2}/Artifacts", kCachePath, file.Substring(0, 2), file);
         }
 
-        [MenuItem("AssetBundles/Purge Build Cache", priority = 10)]
+        [MenuItem("Window/Build Pipeline/Purge Build Cache", priority = 10)]
         public static void PurgeCache()
         {
             if (!EditorUtility.DisplayDialog("Purge Build Cache", "Do you really want to purge your entire build cache?", "Yes", "No"))
@@ -116,8 +116,13 @@ namespace UnityEditor.Build.Utilities
                         result = false;
                         continue;
                     }
-
-                    File.Copy(source, string.Format("{0}/{1}", path, artifact), true);
+                    else if (result)
+                    {
+                        var copyToPath = string.Format("{0}/{1}", path, artifact);
+                        var directory = Path.GetDirectoryName(copyToPath);
+                        Directory.CreateDirectory(directory);
+                        File.Copy(source, copyToPath, true);
+                    }
                 }
             }
             catch (Exception)
@@ -134,16 +139,17 @@ namespace UnityEditor.Build.Utilities
 
         public static bool SaveCachedResultsAndArtifacts<T>(Hash128 hash, T results, string[] artifactPaths, string rootPath)
         {
-            if (!SaveCachedResults(hash, results))
-                return false;
-
-            if (SaveCachedArtifacts(hash, artifactPaths, rootPath))
+            if (SaveCachedResults(hash, results) && SaveCachedArtifacts(hash, artifactPaths, rootPath))
                 return true;
-
-            // Artifacts failed to cache, delete results
+            
             var path = GetPathForCachedResults(hash);
             if (Directory.Exists(path))
                 Directory.Delete(path, true);
+
+            path = GetPathForCachedArtifacts(hash);
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
+            
             return false;
         }
     }

@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build
 {
-    public class NewBuildPipelineWindow : EditorWindow
+    public class DebugBundleBuildWindow : EditorWindow
     {
         [Serializable]
         private struct Settings
@@ -32,11 +32,11 @@ namespace UnityEditor.Build
         SerializedProperty m_OutputProp;
 
         // Add menu named "My Window" to the Window menu
-        [MenuItem("Build Pipeline/Debug Window")]
+        [MenuItem("Window/Build Pipeline/Debug Window")]
         static void Init()
         {
             // Get existing open window or if none, make a new one:
-            var window = GetWindow<NewBuildPipelineWindow>("New Build Pipeline");
+            var window = GetWindow<DebugBundleBuildWindow>("Debug Build");
             window.m_Settings.buildTarget = EditorUserBuildSettings.activeBuildTarget;
             window.m_Settings.buildGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
 
@@ -133,7 +133,7 @@ namespace UnityEditor.Build
                     break;
             }
 
-            var success = BundleBuildPipeline.BuildAssetBundles(BuildInterface.GenerateBuildInput(), bundleSettings, m_Settings.outputPath, compression, m_Settings.useBuildCache);
+            var success = BundleBuildPipeline.BuildAssetBundles(BundleBuildInterface.GenerateBuildInput(), bundleSettings, m_Settings.outputPath, compression, m_Settings.useBuildCache);
 
             buildTimer.Stop();
             BuildLogger.Log("Build Asset Bundles {0} in: {1:c}", success ? "completed" : "failed", buildTimer.Elapsed);

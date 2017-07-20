@@ -20,7 +20,7 @@ namespace UnityEditor.Build.AssetBundle
         {
             var settings = new BuildSettings();
             settings.target = EditorUserBuildSettings.activeBuildTarget;
-            settings.group = EditorUserBuildSettings.selectedBuildTargetGroup;
+            settings.group = BuildPipeline.GetBuildTargetGroup(settings.target);
             return settings;
         }
 
@@ -28,42 +28,74 @@ namespace UnityEditor.Build.AssetBundle
         {
             var settings = new ScriptCompilationSettings();
             settings.target = EditorUserBuildSettings.activeBuildTarget;
-            settings.targetGroup = EditorUserBuildSettings.selectedBuildTargetGroup;
+            settings.group = BuildPipeline.GetBuildTargetGroup(settings.target);
             return settings;
         }
 
 
-        [MenuItem("AssetBundles/Build Asset Bundles", priority = 0)]
-        public static void BuildAssetBundles()
+        [MenuItem("Window/Build Pipeline/Build Asset Bundles", priority = 0)]
+        public static bool BuildAssetBundles()
         {
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var playerSettings = GeneratePlayerBuildSettings();
-            var playerResults = PlayerBuildInterface.CompilePlayerScripts(playerSettings, kTempPlayerBuildPath);
-            if (Directory.Exists(kTempPlayerBuildPath))
-                Directory.Delete(kTempPlayerBuildPath, true);
-
-            var bundleInput = BuildInterface.GenerateBuildInput();
-
+            var bundleInput = BundleBuildInterface.GenerateBuildInput();
             var bundleSettings = GenerateBundleBuildSettings();
-            bundleSettings.typeDB = playerResults.typeDB;
-
             var bundleCompression = BuildCompression.DefaultUncompressed;
-
-            var success = BuildAssetBundles(bundleInput, bundleSettings, kDefaultOutputPath, bundleCompression);
+            var success = BuildAssetBundles_Internal(bundleInput, bundleSettings, kDefaultOutputPath, bundleCompression, true);
 
             buildTimer.Stop();
-            BuildLogger.Log("Build Asset Bundles {0} in: {1:c}", success ? "completed" : "failed", buildTimer.Elapsed);
+            if (success)
+                BuildLogger.Log("Build Asset Bundles successful in: {1:c}", buildTimer.Elapsed);
+            else
+                BuildLogger.LogError("Build Asset Bundles failed in: {1:c}", buildTimer.Elapsed);
+
+            return success;
         }
 
         public static bool BuildAssetBundles(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache = true)
         {
-            using (var progressTracker = new BuildProgressTracker(6))
+            var buildTimer = new Stopwatch();
+            buildTimer.Start();
+
+            var success = BuildAssetBundles_Internal(input, settings, outputFolder, compression, useCache);
+
+            buildTimer.Stop();
+            if (success)
+                BuildLogger.Log("Build Asset Bundles successful in: {1:c}", buildTimer.Elapsed);
+            else
+                BuildLogger.LogError("Build Asset Bundles failed in: {1:c}", buildTimer.Elapsed);
+
+            return success;
+        }
+
+        private static bool BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache)
+        {
+            using (var progressTracker = new BuildProgressTracker(7))
             {
+                if (settings.typeDB == null)
+                {
+                    var playerSettings = new ScriptCompilationSettings
+                    {
+                        target = settings.target,
+                        group = settings.group
+                    };
+
+                    ScriptCompilationResult playerResult;
+                    var scriptDependency = new ScriptDependency(useCache, progressTracker);
+                    if (!scriptDependency.Convert(playerSettings, kTempPlayerBuildPath, out playerResult))
+                        return false;
+
+                    if (Directory.Exists(kTempPlayerBuildPath))
+                        Directory.Delete(kTempPlayerBuildPath, true);
+
+                    settings.typeDB = playerResult.typeDB;
+                }
+
                 progressTracker.StartStep("Rebuilding Atlas Cache", 1);
                 // Rebuild sprite atlas cache for correct dependency calculation & writing
                 Packer.RebuildAtlasCacheIfNeeded(settings.target, true, Packer.Execution.Normal);
+                progressTracker.EndProgress();
 
                 // TODO: Backup Active Scenes
 
@@ -112,101 +144,6 @@ namespace UnityEditor.Build.AssetBundle
                 //    return false;
             }
             return true;
-        }
-
-        private static void DebugPrintBuildOutput(ref BuildOutput output)
-        {
-            var stream = new StreamWriter("C:/Projects/AssetBundlesHLAPI/DebugPrintOutput.log", false);
-            // TODO: this debug printing function is ugly as sin, fix it
-            //var msg = new StringBuilder();
-            if (!output.results.IsNullOrEmpty())
-            {
-                foreach (var result in output.results)
-                {
-                    stream.Write("Bundle: '{0}'\n", result.assetBundleName);
-                    if (!result.assetBundleObjects.IsNullOrEmpty())
-                    {
-                        stream.Write("\tWritten Objects:\n");
-                        foreach (var bundleObject in result.assetBundleObjects)
-                        {
-                            stream.Write("\t\tObject: {0}\n", bundleObject.serializedObject);
-                            stream.Write("\t\t\tHeader: {0} offset {1}, size {2}\n", bundleObject.header.fileName, bundleObject.header.offset, bundleObject.header.size);
-                            stream.Write("\t\t\tRaw Data: {0} offset {1}, size {2}\n", bundleObject.rawData.fileName, bundleObject.rawData.offset, bundleObject.rawData.size);
-                        }
-                    }
-
-                    if (!result.includedTypes.IsNullOrEmpty())
-                    {
-                        stream.Write("\tWritten Types:\n");
-                        foreach (var type in result.includedTypes)
-                            stream.Write("\t\t{0}\n", type.FullName);
-                    }
-
-                    if (!result.resourceFiles.IsNullOrEmpty())
-                    {
-                        stream.Write("\tResource Files:\n");
-                        foreach (var resourceFile in result.resourceFiles)
-                            stream.Write("\t\t{0}, {1}, {2}\n", resourceFile.fileName, resourceFile.fileAlias, resourceFile.serializedFile);
-                    }
-                    stream.Write("\n");
-                }
-            }
-            //BuildLogger.Log(msg);
-            stream.Close();
-        }
-
-        private static void DebugPrintCommandSet(ref BuildCommandSet commandSet)
-        {
-            var stream = new StreamWriter("C:/Projects/AssetBundlesHLAPI/DebugPrint.log", false);
-            // TODO: this debug printing function is ugly as sin, fix it
-            //var msg = new StringBuilder();
-            if (!commandSet.commands.IsNullOrEmpty())
-            {
-                foreach (var bundle in commandSet.commands)
-                {
-                    stream.Write("Bundle: '{0}'\n", bundle.assetBundleName);
-                    if (!bundle.explicitAssets.IsNullOrEmpty())
-                    {
-                        stream.Write("\tExplicit Assets:\n");
-                        foreach (var asset in bundle.explicitAssets)
-                        {
-                            // TODO: Create GUIDToAssetPath that takes GUID struct
-                            var addressableName = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
-                            stream.Write("\t\tAsset: {0} - '{1}'\n", asset.asset, addressableName);
-                            if (!asset.includedObjects.IsNullOrEmpty())
-                            {
-                                stream.Write("\t\t\tIncluded Objects:\n");
-                                foreach (var obj in asset.includedObjects)
-                                    stream.Write("\t\t\t\t{0}\n", obj);
-                            }
-
-                            if (!asset.referencedObjects.IsNullOrEmpty())
-                            {
-                                stream.Write("\t\t\tReferenced Objects:\n");
-                                foreach (var obj in asset.referencedObjects)
-                                    stream.Write("\t\t\t\t{0}\n", obj);
-                            }
-                        }
-                    }
-
-                    if (!bundle.assetBundleObjects.IsNullOrEmpty())
-                    {
-                        stream.Write("\tAsset Bundle Objects:\n");
-                        foreach (var obj in bundle.assetBundleObjects)
-                            stream.Write("\t\t{0}: {1}\n", obj.serializationIndex, obj.serializationObject);
-                    }
-
-                    if (!bundle.assetBundleDependencies.IsNullOrEmpty())
-                    {
-                        stream.Write("\tAsset Bundle Dependencies:\n");
-                        foreach (var dependency in bundle.assetBundleDependencies)
-                            stream.Write("\t\t{0}\n", dependency);
-                    }
-                    stream.Write("\n");
-                }
-            }
-            //BuildLogger.Log(msg);
-            stream.Close();
         }
     }
 }

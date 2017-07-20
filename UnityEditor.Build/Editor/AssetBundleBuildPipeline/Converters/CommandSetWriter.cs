@@ -8,8 +8,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 {
     public class CommandSetWriter : ADataConverter<BuildCommandSet, BuildSettings, string, BuildOutput>
     {
-        private Dictionary<string, BuildCommandSet.Command> m_NameToBundle = new Dictionary<string, BuildCommandSet.Command>();
-        private Dictionary<string, HashSet<string>> m_NameToDependentSet = new Dictionary<string, HashSet<string>>();
+        private Dictionary<string, List<string>> m_NameToDependencies = new Dictionary<string, List<string>>();
+        private Dictionary<GUID, string> m_AssetToHash = new Dictionary<GUID, string>();
 
         public override uint Version { get { return 1; } }
 
@@ -20,51 +20,37 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (!UseCache)
                 return new Hash128();
 
-            // NOTE: correct hash should be based off command, command dependencies, dependent commands, build target, build group, and build typedb
-            // TODO: Remove dependents once Usage Tag calculation is passed into the write command
-            var bundleSet = m_NameToDependentSet[command.assetBundleName];
-            var bundles = new List<BuildCommandSet.Command>();
-            foreach (var bundle in bundleSet)
-                bundles.Add(m_NameToBundle[bundle]);
-            // TODO: Asset hash
+            // NOTE: correct hash should be based off command, dependencies (internal name), settings, and asset hashes, (and usage tags, NYI)
+            // NOTE: This hashing method assumes we use a deterministic method to generate all serializationIndex
+            var dependencies = m_NameToDependencies[command.assetBundleName];
+            var assetHashes = new List<string>();
+            foreach (var objectID in command.assetBundleObjects)
+                assetHashes.Add(m_AssetToHash[objectID.serializationObject.guid]);
 
-            return HashingMethods.CalculateMD5Hash(Version, bundles, settings);
+            return HashingMethods.CalculateMD5Hash(Version, command, dependencies, assetHashes, settings);
         }
 
         private void CacheDataForCommandSet(BuildCommandSet commandSet)
         {
             if (!UseCache)
                 return;
-            
+
             // Generate data needed for cache hash generation
             foreach (var command in commandSet.commands)
-                m_NameToBundle[command.assetBundleName] = command;
-
-            foreach (var command in commandSet.commands)
             {
-                HashSet<string> dependentSet;
-                if (!m_NameToDependentSet.TryGetValue(command.assetBundleName, out dependentSet))
-                {
-                    dependentSet = new HashSet<string>();
-                    m_NameToDependentSet[command.assetBundleName] = dependentSet;
-                }
-
-                // Add current bundle
-                dependentSet.Add(command.assetBundleName);
+                var dependencies = new List<string>();
+                m_NameToDependencies[command.assetBundleName] = dependencies;
+                dependencies.Add(command.assetBundleName);
                 foreach (var dependency in command.assetBundleDependencies)
-                {
-                    // Add bundle dependencies
-                    dependentSet.Add(dependency);
+                    dependencies.Add(dependency);
 
-                    // TODO: Remove reverse dependencies once Usage Tag calculation is passed into the write command
-                    HashSet<string> dependencySet;
-                    if (!m_NameToDependentSet.TryGetValue(dependency, out dependencySet))
-                    {
-                        dependencySet = new HashSet<string>();
-                        m_NameToDependentSet[dependency] = dependencySet;
-                    }
-                    // Add reverse bundle dependencies
-                    dependencySet.Add(command.assetBundleName);
+                foreach (var objectID in command.assetBundleObjects)
+                {
+                    if (m_AssetToHash.ContainsKey(objectID.serializationObject.guid))
+                        continue;
+
+                    var path = AssetDatabase.GUIDToAssetPath(objectID.serializationObject.guid.ToString());
+                    m_AssetToHash[objectID.serializationObject.guid] = AssetDatabase.GetAssetDependencyHash(path).ToString();
                 }
             }
         }
@@ -86,7 +72,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     continue;
                 }
 
-                result = BuildInterface.WriteResourceFilesForBundle(commandSet, command.assetBundleName, settings, outputFolder);
+                result = BundleBuildInterface.WriteResourceFilesForBundle(commandSet, command.assetBundleName, settings, outputFolder);
                 results.AddRange(result.results);
 
                 if (UseCache && !TrySaveToCache(hash, result, outputFolder))

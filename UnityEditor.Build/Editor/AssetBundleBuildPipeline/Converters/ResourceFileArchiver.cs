@@ -49,7 +49,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     continue;
 
                 var filePath = string.Format("{0}/{1}", outputFolder, bundle.assetBundleName);
-                crc = BuildInterface.ArchiveAndCompress(resourceFiles.ToArray(), filePath, compression);
+                crc = BundleBuildInterface.ArchiveAndCompress(resourceFiles.ToArray(), filePath, compression);
                 output[bundle.assetBundleName] = crc;
 
                 if (UseCache && !TrySaveToCache(hash, bundle.assetBundleName, crc, outputFolder))

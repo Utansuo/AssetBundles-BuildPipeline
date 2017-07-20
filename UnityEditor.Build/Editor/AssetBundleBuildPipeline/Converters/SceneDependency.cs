@@ -31,6 +31,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             var dependencyHashes = new string[dependencies.Length];
             for (var i = 0; i < dependencies.Length; ++i)
                 dependencyHashes[i] = AssetDatabase.GetAssetDependencyHash(dependencies[i]).ToString();
+            
             return HashingMethods.CalculateMD5Hash(Version, assetHash, dependencyHashes, settings);
         }
 
@@ -53,9 +54,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return true;
             }
 
-            output = BuildInterface.PrepareScene(scenePath, settings, outputFolder);
+            output = BundleBuildInterface.PrepareScene(scenePath, settings, outputFolder);
 
-            if (UseCache && !BuildCache.SaveCachedResults(hash, output))
+            if (UseCache && !TrySaveToCache(hash, output, outputFolder))
                 BuildLogger.LogWarning("Unable to cache SceneDependency results for asset '{0}'.", scene);
 
             EndProgressBar();
@@ -73,17 +74,46 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             Directory.CreateDirectory(outputFolder);
 
             foreach (var artifact in artifactPaths)
-                File.Copy(artifact, artifact.Replace(rootCachePath, outputFolder), true);
+            {
+                var copyToPath = artifact.Replace(rootCachePath, outputFolder);
+                var directory = Path.GetDirectoryName(copyToPath);
+                Directory.CreateDirectory(directory);
+                File.Copy(artifact, copyToPath, true);
+            }
+
+            // Add output folder to output results as that is the expected return paths format
+            output.processedScene = string.Format("{0}/{1}", outputFolder, output.processedScene);
+            for (var i = 0; i < output.resourceFiles.Length; i++)
+                output.resourceFiles[i].fileName = string.Format("{0}/{1}", outputFolder, output.resourceFiles[i].fileName);
+
             return true;
         }
 
         private bool TrySaveToCache(Hash128 hash, SceneLoadInfo output, string outputFolder)
         {
-            var artifacts = new string[output.resourceFiles.Length];
-            for (var i = 0; i < output.resourceFiles.Length; i++)
-                artifacts[i] = output.resourceFiles[i].fileName;
+            var artifacts = new string[output.resourceFiles.Length + 1];
 
-            return BuildCache.SaveCachedResultsAndArtifacts(hash, output, artifacts, outputFolder);
+            // Note: SceneLoadInfo contains paths with the current output folder
+            // we need to normalize the path before we cache the results
+            var origFiles = output.resourceFiles;
+            output.resourceFiles = new ResourceFile[output.resourceFiles.Length];
+            origFiles.CopyTo(output.resourceFiles, 0);
+
+            var origProcessedScene = output.processedScene;
+            output.processedScene = output.processedScene.Substring(outputFolder.Length + 1);
+            artifacts[0] = output.processedScene;
+
+            for (var i = 0; i < output.resourceFiles.Length; i++)
+            {
+                output.resourceFiles[i].fileName = output.resourceFiles[i].fileName.Substring(outputFolder.Length + 1);
+                artifacts[i + 1] = output.resourceFiles[i].fileName;
+            }
+
+            var results = BuildCache.SaveCachedResultsAndArtifacts(hash, output, artifacts, outputFolder);
+
+            output.processedScene = origProcessedScene;
+            output.resourceFiles = origFiles;
+            return results;
         }
     }
 }

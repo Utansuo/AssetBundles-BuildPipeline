@@ -54,9 +54,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
             output.asset = asset;
             UpdateProgressBar("Calculating included objects");
-            output.includedObjects = BuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);
+            output.includedObjects = BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);
             UpdateProgressBar("Calculating referenced objects");
-            output.referencedObjects = BuildInterface.GetPlayerDependenciesForObjects(output.includedObjects, settings.target, settings.typeDB);
+            output.referencedObjects = BundleBuildInterface.GetPlayerDependenciesForObjects(output.includedObjects, settings.target, settings.typeDB);
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetDependency results for asset '{0}'.", asset);
