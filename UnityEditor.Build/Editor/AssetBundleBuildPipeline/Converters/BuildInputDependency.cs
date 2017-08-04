@@ -1,9 +1,11 @@
-﻿using UnityEditor.Build.Utilities;
+﻿using System.Collections.Generic;
+using System.Linq;
+using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class BuildInputDependency : ADataConverter<BuildInput, BuildSettings, string, BuildDependencyInformation>
+    public class BuildInputDependency : ADataConverter<BuildInput, BuildSettings, BuildDependencyInformation>
     {
         public override uint Version { get { return 1; } }
 
@@ -31,7 +33,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
         private AssetDependency m_AssetDependency = new AssetDependency(true, null);
         private SceneDependency m_SceneDependency = new SceneDependency(true, null);
 
-        public override bool Convert(BuildInput input, BuildSettings settings, string outputFolder, out BuildDependencyInformation output)
+        public override bool Convert(BuildInput input, BuildSettings settings, out BuildDependencyInformation output)
         {
             StartProgressBar(input);
 
@@ -45,7 +47,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         UpdateProgressBar(asset.asset);
                         
                         SceneLoadInfo sceneInfo;
-                        if (!m_SceneDependency.Convert(asset.asset, settings, outputFolder, out sceneInfo))
+                        if (!m_SceneDependency.Convert(asset.asset, settings, out sceneInfo))
                             continue;
 
                         var assetInfo = new BuildCommandSet.AssetLoadInfo();
@@ -53,12 +55,20 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
                         assetInfo.processedScene = sceneInfo.processedScene;
                         assetInfo.includedObjects = new ObjectIdentifier[0];
-                        assetInfo.referencedObjects = sceneInfo.referencedObjects;
-
-                        output.sceneResourceFiles.Add(asset.asset, sceneInfo.resourceFiles);
+                        assetInfo.referencedObjects = sceneInfo.referencedObjects.ToArray();
+                        
+                        output.sceneResourceFiles.Add(asset.asset, sceneInfo.resourceFiles.ToArray());
                         output.sceneUsageTags.Add(asset.asset, sceneInfo.globalUsage);
                         output.assetLoadInfo.Add(asset.asset, assetInfo);
                         output.assetToBundle.Add(asset.asset, bundle.assetBundleName);
+
+                        List<GUID> assets;
+                        if (!output.bundleToAssets.TryGetValue(bundle.assetBundleName, out assets))
+                        {
+                            assets = new List<GUID>();
+                            output.bundleToAssets[bundle.assetBundleName] = assets;
+                        }
+                        assets.Add(asset.asset);
                     }
                     else if (AssetDependency.ValidAsset(asset.asset))
                     {
@@ -71,6 +81,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
                         output.assetLoadInfo.Add(asset.asset, assetInfo);
                         output.assetToBundle.Add(asset.asset, bundle.assetBundleName);
+
+                        List<GUID> assets;
+                        if (!output.bundleToAssets.TryGetValue(bundle.assetBundleName, out assets))
+                        {
+                            assets = new List<GUID>();
+                            output.bundleToAssets[bundle.assetBundleName] = assets;
+                        }
+                        assets.Add(asset.asset);
                     }
                     else
                         UpdateProgressBar(asset.asset);

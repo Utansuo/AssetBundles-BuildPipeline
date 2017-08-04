@@ -9,13 +9,13 @@ namespace UnityEditor.Build.Utilities
     {
         private const string kCachePath = "Library/BuildCache";
 
-        private static string GetPathForCachedResults(Hash128 hash)
+        public static string GetPathForCachedResults(Hash128 hash)
         {
             var file = hash.ToString();
             return string.Format("{0}/{1}/{2}/Results", kCachePath, file.Substring(0, 2), file);
         }
 
-        private static string GetPathForCachedArtifacts(Hash128 hash)
+        public static string GetPathForCachedArtifacts(Hash128 hash)
         {
             var file = hash.ToString();
             return string.Format("{0}/{1}/{2}/Artifacts", kCachePath, file.Substring(0, 2), file);

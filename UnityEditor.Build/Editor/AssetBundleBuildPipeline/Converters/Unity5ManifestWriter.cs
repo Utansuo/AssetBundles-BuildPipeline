@@ -70,7 +70,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             // TODO: Prepare settings.outputFolder
             Directory.CreateDirectory(outputFolder);
 
-            for (var i = 0; i < output.results.Length; i++)
+            for (var i = 0; i < output.results.Count; i++)
             {
                 UpdateProgressBar(string.Format("Bundle: {0}", output.results[i].assetBundleName));
                 var manifestPath = GetManifestFilePath(output.results[i].assetBundleName, outputFolder);

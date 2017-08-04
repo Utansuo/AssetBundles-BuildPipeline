@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class CommandSetWriter : ADataConverter<BuildCommandSet, BuildSettings, string, BuildOutput>
+    public class CommandSetWriter : ADataConverter<BuildCommandSet, BuildSettings, List<BuildOutput.Result>>
     {
         private Dictionary<string, List<string>> m_NameToDependencies = new Dictionary<string, List<string>>();
         private Dictionary<GUID, string> m_AssetToHash = new Dictionary<GUID, string>();
@@ -55,61 +55,41 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             }
         }
 
-        public override bool Convert(BuildCommandSet commandSet, BuildSettings settings, string outputFolder, out BuildOutput output)
+        private string GetBuildPath(Hash128 hash)
+        {
+            var path = BundleBuildPipeline.kTempBundleBuildPath;
+            if (UseCache)
+                path = BuildCache.GetPathForCachedArtifacts(hash);
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        public override bool Convert(BuildCommandSet commandSet, BuildSettings settings, out List<BuildOutput.Result> output)
         {
             StartProgressBar("Writing Resource Files", commandSet.commands.Length);
             CacheDataForCommandSet(commandSet);
 
-            var results = new List<BuildOutput.Result>();
+            output = new List<BuildOutput.Result>();
             foreach (var command in commandSet.commands)
             {
                 UpdateProgressBar(string.Format("Bundle: {0}", command.assetBundleName));
                 BuildOutput result;
                 Hash128 hash = CalculateInputHash(command, settings);
-                if (UseCache && TryLoadFromCache(hash, outputFolder, out result))
+                if (UseCache && BuildCache.TryLoadCachedResults(hash, out result))
                 {
-                    results.AddRange(result.results);
+                    output.AddRange(result.results);
                     continue;
                 }
 
-                result = BundleBuildInterface.WriteResourceFilesForBundle(commandSet, command.assetBundleName, settings, outputFolder);
-                results.AddRange(result.results);
+                result = BundleBuildInterface.WriteResourceFilesForBundle(commandSet, command.assetBundleName, settings, GetBuildPath(hash));
+                output.AddRange(result.results);
 
-                if (UseCache && !TrySaveToCache(hash, result, outputFolder))
+                if (UseCache && !BuildCache.SaveCachedResults(hash, result))
                     BuildLogger.LogWarning("Unable to cache CommandSetWriter results for command '{0}'.", command.assetBundleName);
             }
-
-            output = new BuildOutput();
-            output.results = results.ToArray();
+            
             EndProgressBar();
             return true;
-        }
-
-        private bool TryLoadFromCache(Hash128 hash, string outputFolder, out BuildOutput output)
-        {
-            string rootCachePath;
-            string[] artifactPaths;
-
-            if (!BuildCache.TryLoadCachedResultsAndArtifacts(hash, out output, out artifactPaths, out rootCachePath))
-                return false;
-
-            Directory.CreateDirectory(outputFolder);
-
-            foreach (var artifact in artifactPaths)
-                File.Copy(artifact, artifact.Replace(rootCachePath, outputFolder), true);
-            return true;
-        }
-
-        private bool TrySaveToCache(Hash128 hash, BuildOutput output, string outputFolder)
-        {
-            var artifacts = new List<string>();
-            foreach (var result in output.results)
-            {
-                foreach (var resource in result.resourceFiles)
-                    artifacts.Add(Path.GetFileName(resource.fileName));
-            }
-
-            return BuildCache.SaveCachedResultsAndArtifacts(hash, output, artifacts.ToArray(), outputFolder);
         }
     }
 }

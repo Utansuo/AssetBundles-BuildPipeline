@@ -41,14 +41,14 @@ namespace UnityEditor.Build.AssetBundle
 
             var bundleInput = BundleBuildInterface.GenerateBuildInput();
             var bundleSettings = GenerateBundleBuildSettings();
-            var bundleCompression = BuildCompression.DefaultUncompressed;
+            var bundleCompression = BuildCompression.DefaultLZMA;
             var success = BuildAssetBundles_Internal(bundleInput, bundleSettings, kDefaultOutputPath, bundleCompression, true);
 
             buildTimer.Stop();
             if (success)
-                BuildLogger.Log("Build Asset Bundles successful in: {1:c}", buildTimer.Elapsed);
+                BuildLogger.Log("Build Asset Bundles successful in: {0:c}", buildTimer.Elapsed);
             else
-                BuildLogger.LogError("Build Asset Bundles failed in: {1:c}", buildTimer.Elapsed);
+                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
 
             return success;
         }
@@ -62,15 +62,18 @@ namespace UnityEditor.Build.AssetBundle
 
             buildTimer.Stop();
             if (success)
-                BuildLogger.Log("Build Asset Bundles successful in: {1:c}", buildTimer.Elapsed);
+                BuildLogger.Log("Build Asset Bundles successful in: {0:c}", buildTimer.Elapsed);
             else
-                BuildLogger.LogError("Build Asset Bundles failed in: {1:c}", buildTimer.Elapsed);
+                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
 
             return success;
         }
 
         internal static bool BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache)
         {
+            // TODO: Handle Progressbar Cancel
+            // TODO: Until new AssetDatabase is online, we need to switch platforms
+
             using (var progressTracker = new BuildProgressTracker(7))
             {
                 if (settings.typeDB == null)
@@ -101,7 +104,7 @@ namespace UnityEditor.Build.AssetBundle
 
                 BuildDependencyInformation buildInfo;
                 var buildInputDependency = new BuildInputDependency(useCache, progressTracker);
-                if (!buildInputDependency.Convert(input, settings, kTempBundleBuildPath, out buildInfo))
+                if (!buildInputDependency.Convert(input, settings, out buildInfo))
                     return false;
 
                 // Strip out sprite source textures if nothing references them directly
@@ -117,13 +120,13 @@ namespace UnityEditor.Build.AssetBundle
                 // Generate the commandSet from the calculated dependency information
                 BuildCommandSet commandSet;
                 var commandSetProcessor = new CommandSetProcessor(useCache, progressTracker);
-                if (!commandSetProcessor.Convert(input, buildInfo, out commandSet))
+                if (!commandSetProcessor.Convert(buildInfo, out commandSet))
                     return false;
 
                 // Write out resource files
-                BuildOutput output;
+                List<BuildOutput.Result> output;
                 var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
-                if (!commandSetWriter.Convert(commandSet, settings, kTempBundleBuildPath, out output))
+                if (!commandSetWriter.Convert(commandSet, settings, out output))
                     return false;
 
                 // TODO: Restore Active Scenes
@@ -143,6 +146,9 @@ namespace UnityEditor.Build.AssetBundle
                 //if (!manifestWriter.Convert(commandSet, output, crc, outputFolder, out manifestfiles))
                 //    return false;
             }
+
+            // TODO: Switch back to previous platform
+
             return true;
         }
     }

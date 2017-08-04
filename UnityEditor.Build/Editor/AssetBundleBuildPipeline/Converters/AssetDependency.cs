@@ -38,9 +38,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
         {
             StartProgressBar("Calculating Asset Dependencies", 2);
 
-            output = new BuildCommandSet.AssetLoadInfo();
             if (!ValidAsset(asset))
             {
+                output = new BuildCommandSet.AssetLoadInfo();
                 EndProgressBar();
                 return false;
             }
@@ -52,6 +52,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return true;
             }
 
+            output = new BuildCommandSet.AssetLoadInfo();
             output.asset = asset;
             UpdateProgressBar("Calculating included objects");
             output.includedObjects = BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);

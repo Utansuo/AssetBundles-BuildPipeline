@@ -71,8 +71,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     continue;
 
                 var assetInfo = output[source.Key.guid];
-                assetInfo.includedObjects.Swap(0, assetInfo.includedObjects.Length - 1);
-                Array.Resize(ref assetInfo.includedObjects, assetInfo.includedObjects.Length - 1);
+                var includedObjects = assetInfo.includedObjects;
+                includedObjects.Swap(0, includedObjects.Length - 1);
+                Array.Resize(ref includedObjects, includedObjects.Length - 1);
 
                 // Note: Because pass by value
                 output[source.Key.guid] = assetInfo;

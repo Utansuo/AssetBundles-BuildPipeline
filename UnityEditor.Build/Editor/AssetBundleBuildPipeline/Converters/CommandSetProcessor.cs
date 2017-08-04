@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class CommandSetProcessor : ADataConverter<BuildInput, BuildDependencyInformation, BuildCommandSet>
+    public class CommandSetProcessor : ADataConverter<BuildDependencyInformation, BuildCommandSet>
     {
         private const string kUnityDefaultResourcePath = "library/unity default resources";
 
@@ -17,19 +17,19 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         public CommandSetProcessor(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
         
-        private Hash128 CalculateInputHash(BuildInput input, BuildDependencyInformation buildInfo)
+        private Hash128 CalculateInputHash(BuildDependencyInformation buildInfo)
         {
             if (!UseCache)
                 return new Hash128();
 
-            return HashingMethods.CalculateMD5Hash(Version, input, buildInfo.assetLoadInfo, buildInfo.assetToBundle, buildInfo.sceneUsageTags);
+            return HashingMethods.CalculateMD5Hash(Version, buildInfo.assetLoadInfo, buildInfo.assetToBundle, buildInfo.bundleToAssets, buildInfo.sceneUsageTags);
         }
 
-        public override bool Convert(BuildInput input, BuildDependencyInformation buildInfo, out BuildCommandSet output)
+        public override bool Convert(BuildDependencyInformation buildInfo, out BuildCommandSet output)
         {
             StartProgressBar("Generating Build Commands", buildInfo.assetLoadInfo.Count);
 
-            Hash128 hash = CalculateInputHash(input, buildInfo);
+            Hash128 hash = CalculateInputHash(buildInfo);
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
             {
                 EndProgressBar();
@@ -38,7 +38,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             
             var commands = new List<BuildCommandSet.Command>();
 
-            foreach (var bundle in input.definitions)
+            foreach (var bundle in buildInfo.bundleToAssets)
             {
                 var command = new BuildCommandSet.Command();
                 var explicitAssets = new List<BuildCommandSet.AssetLoadInfo>();
@@ -46,9 +46,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 var addedObjects = new HashSet<ObjectIdentifier>();
                 var dependencies = new HashSet<string>();
 
-                foreach (var asset in bundle.explicitAssets)
+                foreach (var asset in bundle.Value)
                 {
-                    var assetInfo = buildInfo.assetLoadInfo[asset.asset];
+                    var assetInfo = buildInfo.assetLoadInfo[asset];
                     explicitAssets.Add(assetInfo);
                     UpdateProgressBar(assetInfo.asset);
 
@@ -87,7 +87,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     }
 
                     BuildUsageTagGlobal globalUsage;
-                    if (buildInfo.sceneUsageTags.TryGetValue(asset.asset, out globalUsage))
+                    if (buildInfo.sceneUsageTags.TryGetValue(asset, out globalUsage))
                     {
                         command.sceneBundle = true;
                         command.globalUsage |= globalUsage;
@@ -96,7 +96,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 assetBundleObjects.Sort(Compare);
 
-                command.assetBundleName = bundle.assetBundleName;
+                command.assetBundleName = bundle.Key;
                 command.explicitAssets = explicitAssets.ToArray();
                 command.assetBundleDependencies = dependencies.OrderBy(x => x).ToArray();  // I hate Linq, but this is too easy
                 command.assetBundleObjects = assetBundleObjects.ToArray();

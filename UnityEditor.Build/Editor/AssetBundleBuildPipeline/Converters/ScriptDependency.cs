@@ -66,8 +66,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         private bool TrySaveToCache(Hash128 hash, ScriptCompilationResult output, string outputFolder)
         {
-            var artifacts = new string[output.assemblies.Length];
-            for (var i = 0; i < output.assemblies.Length; i++)
+            var artifacts = new string[output.assemblies.Count];
+            for (var i = 0; i < output.assemblies.Count; i++)
                 artifacts[i] = output.assemblies[i];
 
             return BuildCache.SaveCachedResultsAndArtifacts(hash, output, artifacts, outputFolder);

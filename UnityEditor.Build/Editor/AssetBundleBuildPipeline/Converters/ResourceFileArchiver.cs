@@ -9,7 +9,7 @@ using SceneResourceMap = System.Collections.Generic.Dictionary<UnityEditor.GUID,
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class ResourceFileArchiver : ADataConverter<BuildOutput, SceneResourceMap, BuildCompression, string, CRCMap>
+    public class ResourceFileArchiver : ADataConverter<List<BuildOutput.Result>, SceneResourceMap, BuildCompression, string, CRCMap>
     {
         public override uint Version { get { return 1; } }
 
@@ -26,12 +26,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, fileHashes, compression);
         }
 
-        public override bool Convert(BuildOutput writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out CRCMap output)
+        public override bool Convert(List<BuildOutput.Result> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out CRCMap output)
         {
-            StartProgressBar("Archiving Resource Files", writenData.results.Length);
+            StartProgressBar("Archiving Resource Files", writenData.Count);
             output = new CRCMap();
 
-            foreach (var bundle in writenData.results)
+            foreach (var bundle in writenData)
             {
                 UpdateProgressBar(string.Format("Bundle: {0}", bundle.assetBundleName));
                 var resourceFiles = new List<ResourceFile>(bundle.resourceFiles);
