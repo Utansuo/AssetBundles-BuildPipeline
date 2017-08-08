@@ -43,7 +43,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             for (var i = 0; i < input.Length; i++)
             {
                 output.definitions[i].assetBundleName = input[i].assetBundleName;
-                output.definitions[i].explicitAssets = new BuildInput.AddressableAsset[input[i].assetNames.Length];
+                output.definitions[i].explicitAssets = new BuildInput.AssetIdentifier[input[i].assetNames.Length];
                 for (var j = 0; j < input.Length; j++)
                 {
                     UpdateProgressBar(input[i].assetNames[j]);

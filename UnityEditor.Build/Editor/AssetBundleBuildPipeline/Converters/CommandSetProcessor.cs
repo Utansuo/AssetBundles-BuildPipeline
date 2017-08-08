@@ -11,7 +11,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 {
     public class CommandSetProcessor : ADataConverter<BuildDependencyInformation, BuildCommandSet>
     {
-        private const string kUnityDefaultResourcePath = "library/unity default resources";
+        public const string kUnityDefaultResourcePath = "library/unity default resources";
 
         public override uint Version { get { return 1; } }
 

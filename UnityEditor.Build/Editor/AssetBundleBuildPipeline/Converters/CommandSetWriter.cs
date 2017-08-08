@@ -35,6 +35,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (!UseCache)
                 return;
 
+            m_NameToDependencies.Clear();
+            m_AssetToHash.Clear();
+
             // Generate data needed for cache hash generation
             foreach (var command in commandSet.commands)
             {
