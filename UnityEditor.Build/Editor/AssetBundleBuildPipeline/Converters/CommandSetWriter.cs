@@ -67,7 +67,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return path;
         }
 
-        public override bool Convert(BuildCommandSet commandSet, BuildSettings settings, out List<BuildOutput.Result> output)
+        public override BuildPipelineCodes Convert(BuildCommandSet commandSet, BuildSettings settings, out List<BuildOutput.Result> output)
         {
             StartProgressBar("Writing Resource Files", commandSet.commands.Length);
             CacheDataForCommandSet(commandSet);
@@ -75,7 +75,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             output = new List<BuildOutput.Result>();
             foreach (var command in commandSet.commands)
             {
-                UpdateProgressBar(string.Format("Bundle: {0}", command.assetBundleName));
+                if (!UpdateProgressBar(string.Format("Bundle: {0}", command.assetBundleName)))
+                {
+                    EndProgressBar();
+                    return BuildPipelineCodes.Canceled;
+                }
+
                 BuildOutput result;
                 Hash128 hash = CalculateInputHash(command, settings);
                 if (UseCache && BuildCache.TryLoadCachedResults(hash, out result))
@@ -90,9 +95,10 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 if (UseCache && !BuildCache.SaveCachedResults(hash, result))
                     BuildLogger.LogWarning("Unable to cache CommandSetWriter results for command '{0}'.", command.assetBundleName);
             }
-            
-            EndProgressBar();
-            return true;
+
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
     }
 }

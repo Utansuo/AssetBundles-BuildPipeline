@@ -17,7 +17,7 @@ namespace UnityEditor.Build.Utilities
 
         public BuildProgressTracker(int stepCount)
         {
-            StepCount = Mathf.Max(stepCount, 1);;
+            StepCount = Mathf.Max(stepCount, 1);
         }
 
         public void StartStep(string title, int progressCount)
@@ -36,9 +36,9 @@ namespace UnityEditor.Build.Utilities
             return !EditorUtility.DisplayCancelableProgressBar(m_StepTitle, info, progress);
         }
 
-        public void EndProgress()
+        public bool EndProgress()
         {
-            EditorUtility.DisplayCancelableProgressBar(m_StepTitle, "", 1f);
+            return !EditorUtility.DisplayCancelableProgressBar(m_StepTitle, "", 1f);
         }
 
         public void ClearTracker()

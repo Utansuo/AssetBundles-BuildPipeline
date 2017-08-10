@@ -45,7 +45,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, commands, output, crcs);
         }
 
-        public override bool Convert(BuildCommandSet commands, BuildOutput output, uint[] crcs, string outputFolder, out string[] manifestFiles)
+        public override BuildPipelineCodes Convert(BuildCommandSet commands, BuildOutput output, uint[] crcs, string outputFolder, out string[] manifestFiles)
         {
             StartProgressBar("Writing Asset Bundle Manifests", commands.commands.Length);
 
@@ -54,7 +54,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && LoadFromCache(hash, outputFolder, out manifestFiles))
             {
                 EndProgressBar();
-                return true;
+                return BuildPipelineCodes.SuccessCached;
             }
 
             // Convert inputs
@@ -64,7 +64,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 manifestFiles = manifests.ToArray();
                 BuildLogger.LogError("Unable to continue writing manifests. No asset bundle results.");
                 EndProgressBar();
-                return false;
+                return BuildPipelineCodes.Error;
             }
 
             // TODO: Prepare settings.outputFolder
@@ -137,8 +137,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && !SaveToCache(hash, outputFolder, manifestFiles))
                 BuildLogger.LogWarning("Unable to cache Unity5ManifestWriter results.");
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
 
         private bool LoadFromCache(Hash128 hash, string outputFolder, out string[] manifestFiles)

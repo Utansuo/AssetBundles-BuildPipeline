@@ -4,12 +4,11 @@ using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
 
-using CRCMap = System.Collections.Generic.Dictionary<string, uint>;
 using SceneResourceMap = System.Collections.Generic.Dictionary<UnityEditor.GUID, UnityEditor.Experimental.Build.AssetBundle.ResourceFile[]>;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class ResourceFileArchiver : ADataConverter<List<BuildOutput.Result>, SceneResourceMap, BuildCompression, string, CRCMap>
+    public class ResourceFileArchiver : ADataConverter<List<BuildOutput.Result>, SceneResourceMap, BuildCompression, string, BundleBuildResult>
     {
         public override uint Version { get { return 1; } }
 
@@ -26,14 +25,20 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, fileHashes, compression);
         }
 
-        public override bool Convert(List<BuildOutput.Result> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out CRCMap output)
+        public override BuildPipelineCodes Convert(List<BuildOutput.Result> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out BundleBuildResult output)
         {
             StartProgressBar("Archiving Resource Files", writenData.Count);
-            output = new CRCMap();
+            output = new BundleBuildResult();
+            output.bundleCRCs = new Dictionary<string, uint>();
 
             foreach (var bundle in writenData)
             {
-                UpdateProgressBar(string.Format("Bundle: {0}", bundle.assetBundleName));
+                if (!UpdateProgressBar(string.Format("Bundle: {0}", bundle.assetBundleName)))
+                {
+                    EndProgressBar();
+                    return BuildPipelineCodes.Canceled;
+                }
+
                 var resourceFiles = new List<ResourceFile>(bundle.resourceFiles);
                 foreach (var asset in bundle.assetBundleAssets)
                 {
@@ -50,14 +55,15 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 var filePath = string.Format("{0}/{1}", outputFolder, bundle.assetBundleName);
                 crc = BundleBuildInterface.ArchiveAndCompress(resourceFiles.ToArray(), filePath, compression);
-                output[bundle.assetBundleName] = crc;
+                output.bundleCRCs[filePath] = crc;
 
                 if (UseCache && !TrySaveToCache(hash, bundle.assetBundleName, crc, outputFolder))
                     BuildLogger.LogWarning("Unable to cache ResourceFileArchiver result for bundle {0}.", bundle.assetBundleName);
             }
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
 
         private bool TryLoadFromCache(Hash128 hash, string outputFolder, out uint output)

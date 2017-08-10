@@ -15,7 +15,7 @@ namespace UnityEditor.Build.Utilities
 
         bool UpdateProgress(string info);
 
-        void EndProgress();
+        bool EndProgress();
 
         void ClearTracker();
     }

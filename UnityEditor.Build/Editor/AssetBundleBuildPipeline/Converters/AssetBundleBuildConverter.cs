@@ -18,7 +18,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, input);
         }
 
-        public override bool Convert(AssetBundleBuild[] input, out BuildInput output)
+        public override BuildPipelineCodes Convert(AssetBundleBuild[] input, out BuildInput output)
         {
             StartProgressBar(input);
 
@@ -27,7 +27,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
             {
                 EndProgressBar();
-                return true;
+                return BuildPipelineCodes.SuccessCached;
             }
 
             // Convert inputs
@@ -36,7 +36,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (input.IsNullOrEmpty())
             {
                 BuildLogger.LogError("Unable to continue packing. Input is null or empty!");
-                return false;
+                EndProgressBar();
+                return BuildPipelineCodes.Error;
             }
 
             output.definitions = new BuildInput.Definition[input.Length];
@@ -60,8 +61,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetBundleBuildConverter results.");
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
 
         private void StartProgressBar(AssetBundleBuild[] input)

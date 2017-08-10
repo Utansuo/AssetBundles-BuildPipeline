@@ -1,6 +1,8 @@
 ﻿using UnityEditor.Build.AssetBundle;
 using UnityEditor.Build.AssetBundle.DataConverters;
+using UnityEditor.Build.Player;
 using UnityEditor.Experimental.Build.AssetBundle;
+using UnityEditor.Experimental.Build.Player;
 using UnityEngine;
 
 namespace UnityEditor.Build
@@ -9,27 +11,31 @@ namespace UnityEditor.Build
     {
         public static AssetBundleManifest BuildAssetBundles(string outputPath, BuildAssetBundleOptions assetBundleOptions, BuildTarget targetPlatform)
         {
-            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings();
-            bundleSettings.target = targetPlatform;
-            bundleSettings.group = BuildPipeline.GetBuildTargetGroup(targetPlatform);
-
-            BuildCompression compression = BuildCompression.DefaultLZMA;
-            if ((assetBundleOptions & BuildAssetBundleOptions.ChunkBasedCompression) != 0)
-                compression = BuildCompression.DefaultLZ4;
-            else if ((assetBundleOptions & BuildAssetBundleOptions.UncompressedAssetBundle) != 0)
-                compression = BuildCompression.DefaultUncompressed;
-
-            var useCache = (assetBundleOptions & BuildAssetBundleOptions.ForceRebuildAssetBundle) == 0;
-
-            BundleBuildPipeline.BuildAssetBundles(BundleBuildInterface.GenerateBuildInput(), bundleSettings, outputPath, compression, useCache);
-            return null;
+            var buildInput = BundleBuildInterface.GenerateBuildInput();
+            return BuildAssetBundles_Internal(outputPath, buildInput, assetBundleOptions, targetPlatform);
         }
 
         public static AssetBundleManifest BuildAssetBundles(string outputPath, AssetBundleBuild[] builds, BuildAssetBundleOptions assetBundleOptions, BuildTarget targetPlatform)
         {
-            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings();
-            bundleSettings.target = targetPlatform;
-            bundleSettings.group = BuildPipeline.GetBuildTargetGroup(targetPlatform);
+            BuildInput buildInput;
+            var converter = new AssetBundleBuildConverter(false, null);
+            var errorCode = converter.Convert(builds, out buildInput);
+            if (errorCode < BuildPipelineCodes.Success)
+                return null;
+
+            return BuildAssetBundles_Internal(outputPath, buildInput, assetBundleOptions, targetPlatform);
+        }
+
+        internal static AssetBundleManifest BuildAssetBundles_Internal(string outputPath, BuildInput buildInput, BuildAssetBundleOptions assetBundleOptions, BuildTarget targetPlatform)
+        {
+            var playerSettings = PlayerBuildPipeline.GeneratePlayerBuildSettings(targetPlatform);
+            ScriptCompilationResult scriptResults;
+            var errorCode = PlayerBuildPipeline.BuildPlayerScripts(playerSettings, out scriptResults);
+            if (errorCode < BuildPipelineCodes.Success)
+                return null;
+
+            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(targetPlatform);
+            bundleSettings.typeDB = scriptResults.typeDB;
 
             BuildCompression compression = BuildCompression.DefaultLZMA;
             if ((assetBundleOptions & BuildAssetBundleOptions.ChunkBasedCompression) != 0)
@@ -37,14 +43,14 @@ namespace UnityEditor.Build
             else if ((assetBundleOptions & BuildAssetBundleOptions.UncompressedAssetBundle) != 0)
                 compression = BuildCompression.DefaultUncompressed;
 
-            BuildInput buildInput;
-            var converter = new AssetBundleBuildConverter(false, null);
-            if (!converter.Convert(builds, out buildInput))
-                return null;
-
             var useCache = (assetBundleOptions & BuildAssetBundleOptions.ForceRebuildAssetBundle) == 0;
 
-            BundleBuildPipeline.BuildAssetBundles(buildInput, bundleSettings, outputPath, compression, useCache);
+            BundleBuildResult result;
+            errorCode = BundleBuildPipeline.BuildAssetBundles(buildInput, bundleSettings, compression, outputPath, out result, useCache);
+            if (errorCode < BuildPipelineCodes.Success)
+                return null;
+
+            // TODO: Unity 5 Manifest
             return null;
         }
     }

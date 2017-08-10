@@ -44,23 +44,30 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return path;
         }
 
-        public override bool Convert(GUID scene, BuildSettings settings, out SceneLoadInfo output)
+        public override BuildPipelineCodes Convert(GUID scene, BuildSettings settings, out SceneLoadInfo output)
         {
             StartProgressBar("Calculating Scene Dependencies", 1);
             if (!ValidScene(scene))
             {
                 output = new SceneLoadInfo();
-                return false;
+                EndProgressBar();
+                return BuildPipelineCodes.Error;
             }
 
             var scenePath = AssetDatabase.GUIDToAssetPath(scene.ToString());
-            UpdateProgressBar(scenePath);
+            if (!UpdateProgressBar(scenePath))
+            {
+                output = new SceneLoadInfo();
+                EndProgressBar();
+                return BuildPipelineCodes.Canceled;
+            }
 
             Hash128 hash = CalculateInputHash(scene, settings);
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
             {
-                EndProgressBar();
-                return true;
+                if (!EndProgressBar())
+                    return BuildPipelineCodes.Canceled;
+                return BuildPipelineCodes.SuccessCached;
             }
 
             output = BundleBuildInterface.PrepareScene(scenePath, settings, GetBuildPath(hash));
@@ -68,8 +75,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache SceneDependency results for asset '{0}'.", scene);
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
     }
 }

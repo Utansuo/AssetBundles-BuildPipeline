@@ -28,16 +28,22 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return new Hash128();
         }
 
-        public override bool Convert(ScriptCompilationSettings settings, string outputFolder, out ScriptCompilationResult output)
+        public override BuildPipelineCodes Convert(ScriptCompilationSettings settings, string outputFolder, out ScriptCompilationResult output)
         {
             StartProgressBar("Compiling Player Scripts", 1);
 
-            UpdateProgressBar("");
+            if (!UpdateProgressBar(""))
+            {
+                output = new ScriptCompilationResult();
+                EndProgressBar();
+                return BuildPipelineCodes.Canceled;
+            }
+
             Hash128 hash = CalculateInputHash(settings);
             if (UseCache && TryLoadFromCache(hash, outputFolder, out output))
             {
                 EndProgressBar();
-                return true;
+                return BuildPipelineCodes.SuccessCached;
             }
 
             output = PlayerBuildInterface.CompilePlayerScripts(settings, outputFolder);
@@ -45,8 +51,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && !TrySaveToCache(hash, output, outputFolder))
                 BuildLogger.LogWarning("Unable to cache ScriptDependency results.");
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
 
         private bool TryLoadFromCache(Hash128 hash, string outputFolder, out ScriptCompilationResult output)

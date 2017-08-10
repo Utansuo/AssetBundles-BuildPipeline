@@ -22,18 +22,19 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (!UseCache)
                 return new Hash128();
 
-            return HashingMethods.CalculateMD5Hash(Version, buildInfo.assetLoadInfo, buildInfo.assetToBundle, buildInfo.bundleToAssets, buildInfo.sceneUsageTags);
+            return HashingMethods.CalculateMD5Hash(Version, buildInfo.assetLoadInfo, buildInfo.assetToBundles, buildInfo.bundleToAssets, buildInfo.sceneUsageTags);
         }
 
-        public override bool Convert(BuildDependencyInformation buildInfo, out BuildCommandSet output)
+        public override BuildPipelineCodes Convert(BuildDependencyInformation buildInfo, out BuildCommandSet output)
         {
             StartProgressBar("Generating Build Commands", buildInfo.assetLoadInfo.Count);
 
             Hash128 hash = CalculateInputHash(buildInfo);
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
             {
+                output = new BuildCommandSet();
                 EndProgressBar();
-                return true;
+                return BuildPipelineCodes.SuccessCached;
             }
             
             var commands = new List<BuildCommandSet.Command>();
@@ -43,18 +44,26 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 var command = new BuildCommandSet.Command();
                 var explicitAssets = new List<BuildCommandSet.AssetLoadInfo>();
                 var assetBundleObjects = new List<BuildCommandSet.SerializationInfo>();
-                var addedObjects = new HashSet<ObjectIdentifier>();
                 var dependencies = new HashSet<string>();
 
                 foreach (var asset in bundle.Value)
                 {
                     var assetInfo = buildInfo.assetLoadInfo[asset];
                     explicitAssets.Add(assetInfo);
-                    UpdateProgressBar(assetInfo.asset);
+                    if (!UpdateProgressBar(assetInfo.asset))
+                    {
+                        output = new BuildCommandSet();
+                        EndProgressBar();
+                        return BuildPipelineCodes.Canceled;
+                    }
 
+                    dependencies.UnionWith(buildInfo.assetToBundles[asset]);
+                    
                     foreach (var includedObject in assetInfo.includedObjects)
                     {
-                        addedObjects.Add(includedObject);
+                        if (buildInfo.objectToVirtualAsset.ContainsKey(includedObject))
+                            continue;
+
                         assetBundleObjects.Add(new BuildCommandSet.SerializationInfo
                         {
                             serializationObject = includedObject,
@@ -64,21 +73,15 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                     foreach (var referencedObject in assetInfo.referencedObjects)
                     {
-                        if (addedObjects.Contains(referencedObject))
-                            continue;
-
                         if (referencedObject.filePath == kUnityDefaultResourcePath)
                             continue;
 
-                        string dependency;
-                        if (buildInfo.assetToBundle.TryGetValue(referencedObject.guid, out dependency))
-                        {
-                            addedObjects.Add(referencedObject);
-                            dependencies.Add(dependency);
+                        if (buildInfo.objectToVirtualAsset.ContainsKey(referencedObject))
                             continue;
-                        }
 
-                        addedObjects.Add(referencedObject);
+                        if (buildInfo.assetLoadInfo.ContainsKey(referencedObject.guid))
+                            continue;
+
                         assetBundleObjects.Add(new BuildCommandSet.SerializationInfo
                         {
                             serializationObject = referencedObject,
@@ -94,11 +97,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     }
                 }
 
+                dependencies.Remove(bundle.Key);
                 assetBundleObjects.Sort(Compare);
 
                 command.assetBundleName = bundle.Key;
                 command.explicitAssets = explicitAssets.ToArray();
-                command.assetBundleDependencies = dependencies.OrderBy(x => x).ToArray();  // I hate Linq, but this is too easy
+                command.assetBundleDependencies = dependencies.OrderBy(x => x).ToArray();
                 command.assetBundleObjects = assetBundleObjects.ToArray();
                 commands.Add(command);
             }
@@ -109,8 +113,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache CommandSetProcessor results.");
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
 
         public static long SerializationIndexFromObjectIdentifier(ObjectIdentifier objectID)

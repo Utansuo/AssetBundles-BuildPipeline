@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using UnityEditor.Build.AssetBundle;
+using UnityEditor.Build.Player;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEditor.Experimental.Build.Player;
@@ -126,26 +127,23 @@ namespace UnityEditor.Build
 
         private bool ExperimentalBuildPipeline()
         {
-            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings();
-            bundleSettings.target = m_Settings.buildTarget;
-            bundleSettings.group = m_Settings.buildGroup;
+            var playerSettings = PlayerBuildPipeline.GeneratePlayerBuildSettings(m_Settings.buildTarget, m_Settings.buildGroup);
+            ScriptCompilationResult scriptResults;
+            var errorCode = PlayerBuildPipeline.BuildPlayerScripts(playerSettings, out scriptResults);
+            if (errorCode < BuildPipelineCodes.Success)
+                return false;
 
-            BuildCompression compression;
-            switch (m_Settings.compressionType)
-            {
-                case CompressionType.Lzma:
-                    compression = BuildCompression.DefaultLZMA;
-                    break;
-                case CompressionType.None:
-                    compression = BuildCompression.DefaultUncompressed;
-                    break;
-                default:
-                    compression = BuildCompression.DefaultLZ4;
-                    break;
-            }
+            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(m_Settings.buildTarget, m_Settings.buildGroup);
 
-            var success = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, m_Settings.outputPath, compression, m_Settings.useBuildCache);
-            return success;
+            BuildCompression compression = BuildCompression.DefaultLZ4;
+            if (m_Settings.compressionType == CompressionType.None)
+                compression = BuildCompression.DefaultUncompressed;
+            else if (m_Settings.compressionType == CompressionType.Lzma)
+                compression = BuildCompression.DefaultLZMA;
+
+            BundleBuildResult bundleResult;
+            var success = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, m_Settings.useBuildCache, out bundleResult);
+            return success >= BuildPipelineCodes.Success;
         }
 
         private bool LegacyBuildPipeline()

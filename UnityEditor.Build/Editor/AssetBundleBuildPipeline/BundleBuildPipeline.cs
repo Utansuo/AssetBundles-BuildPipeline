@@ -4,14 +4,12 @@ using System.IO;
 using UnityEditor.Build.AssetBundle.DataConverters;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
-using UnityEditor.Experimental.Build.Player;
 using UnityEditor.Sprites;
 
 namespace UnityEditor.Build.AssetBundle
 {
     public class BundleBuildPipeline
     {
-        public const string kTempPlayerBuildPath = "Temp/PlayerBuildData";
         public const string kTempBundleBuildPath = "Temp/BundleBuildData";
 
         public const string kDefaultOutputPath = "AssetBundles";
@@ -24,119 +22,116 @@ namespace UnityEditor.Build.AssetBundle
             return settings;
         }
 
-        public static ScriptCompilationSettings GeneratePlayerBuildSettings()
+        public static BuildSettings GenerateBundleBuildSettings(BuildTarget target)
         {
-            var settings = new ScriptCompilationSettings();
-            settings.target = EditorUserBuildSettings.activeBuildTarget;
+            var settings = new BuildSettings();
+            settings.target = target;
             settings.group = BuildPipeline.GetBuildTargetGroup(settings.target);
             return settings;
         }
 
+        public static BuildSettings GenerateBundleBuildSettings(BuildTarget target, BuildTargetGroup group)
+        {
+            var settings = new BuildSettings();
+            settings.target = target;
+            settings.group = group;
+            // TODO: Validate target & group
+            return settings;
+        }
 
-        [MenuItem("Window/Build Pipeline/Build Asset Bundles", priority = 0)]
-        public static bool BuildAssetBundles()
+        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BundleBuildResult result, bool useCache = true)
         {
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var bundleInput = BundleBuildInterface.GenerateBuildInput();
-            var bundleSettings = GenerateBundleBuildSettings();
-            var bundleCompression = BuildCompression.DefaultLZMA;
-            var success = BuildAssetBundles_Internal(bundleInput, bundleSettings, kDefaultOutputPath, bundleCompression, true);
+            var exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, useCache, out result);
 
             buildTimer.Stop();
-            if (success)
+            if (exitCode == BuildPipelineCodes.Success)
                 BuildLogger.Log("Build Asset Bundles successful in: {0:c}", buildTimer.Elapsed);
+            else if (exitCode == BuildPipelineCodes.Canceled)
+                BuildLogger.LogWarning("Build Asset Bundles canceled in: {0:c}", buildTimer.Elapsed);
             else
                 BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
 
-            return success;
+            return exitCode;
         }
 
-        public static bool BuildAssetBundles(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache = true)
+        internal static BuildPipelineCodes BuildAssetBundles_AtlasCache(BuildTarget target, BuildProgressTracker progressTracker)
         {
-            var buildTimer = new Stopwatch();
-            buildTimer.Start();
-
-            var success = BuildAssetBundles_Internal(input, settings, outputFolder, compression, useCache);
-
-            buildTimer.Stop();
-            if (success)
-                BuildLogger.Log("Build Asset Bundles successful in: {0:c}", buildTimer.Elapsed);
-            else
-                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
-
-            return success;
-        }
-
-        internal static bool BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, string outputFolder, BuildCompression compression, bool useCache)
-        {
-            // TODO: Handle Progressbar Cancel
-            // TODO: Until new AssetDatabase is online, we need to switch platforms
-
-            using (var progressTracker = new BuildProgressTracker(7))
-            {
-                if (settings.typeDB == null)
-                {
-                    var playerSettings = new ScriptCompilationSettings
-                    {
-                        target = settings.target,
-                        group = settings.group
-                    };
-
-                    ScriptCompilationResult playerResult;
-                    var scriptDependency = new ScriptDependency(useCache, progressTracker);
-                    if (!scriptDependency.Convert(playerSettings, kTempPlayerBuildPath, out playerResult))
-                        return false;
-
-                    if (Directory.Exists(kTempPlayerBuildPath))
-                        Directory.Delete(kTempPlayerBuildPath, true);
-
-                    settings.typeDB = playerResult.typeDB;
-                }
-
+            if (progressTracker != null)
                 progressTracker.StartStep("Rebuilding Atlas Cache", 1);
+
+            // Rebuild sprite atlas cache for correct dependency calculation & writing
+            Packer.RebuildAtlasCacheIfNeeded(target, true, Packer.Execution.Normal);
+            if (progressTracker != null && !progressTracker.EndProgress())
+                return BuildPipelineCodes.Canceled;
+
+            // TODO: need RebuildAtlasCacheIfNeeded to return boolean on if it completed successfully or not
+            return BuildPipelineCodes.Success;
+        }
+
+        internal static BuildPipelineCodes BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, bool useCache, out BundleBuildResult result)
+        {
+            // TODO: Until new AssetDatabaseV2 is online, we need to switch platforms
+            EditorUserBuildSettings.SwitchActiveBuildTarget(settings.group, settings.target);
+
+            BuildPipelineCodes exitCode;
+            result = new BundleBuildResult();
+            using (var progressTracker = new BuildProgressTracker(6))
+            {
                 // Rebuild sprite atlas cache for correct dependency calculation & writing
-                Packer.RebuildAtlasCacheIfNeeded(settings.target, true, Packer.Execution.Normal);
-                progressTracker.EndProgress();
+                exitCode = BuildAssetBundles_AtlasCache(settings.target, progressTracker);
+                if (exitCode < BuildPipelineCodes.Success)
+                    return exitCode;
 
                 // TODO: Backup Active Scenes
 
+                // Generate dependency information for all assets in BuildInput
                 BuildDependencyInformation buildInfo;
                 var buildInputDependency = new BuildInputDependency(useCache, progressTracker);
-                if (!buildInputDependency.Convert(input, settings, out buildInfo))
-                    return false;
-
-                // Strip out sprite source textures if nothing references them directly
-                var spriteSourceProcessor = new SpriteSourceProcessor(useCache, progressTracker);
-                if (!spriteSourceProcessor.Convert(buildInfo.assetLoadInfo, out buildInfo.assetLoadInfo))
-                    return false;
+                exitCode = buildInputDependency.Convert(input, settings, out buildInfo);
 
                 // Generate optional shared asset bundles
-                //var sharedObjectProcessor = new SharedObjectProcessor();
-                //if (!sharedObjectProcessor.Convert(buildInfo, out buildInfo))
-                //    return false;
+                //if (exitCode >= BuildPipelineCodes.Success)
+                //{
+                //    var sharedObjectProcessor = new SharedObjectProcessor(useCache, progressTracker);
+                //    exitCode = sharedObjectProcessor.Convert(buildInfo, true, out buildInfo);
+                //}
+
+                // Strip out sprite source textures if nothing references them directly
+                if (exitCode >= BuildPipelineCodes.Success)
+                {
+                    var spriteSourceProcessor = new SpriteSourceProcessor(useCache, progressTracker);
+                    exitCode = spriteSourceProcessor.Convert(buildInfo.assetLoadInfo, out buildInfo.assetLoadInfo);
+                }
 
                 // Generate the commandSet from the calculated dependency information
-                BuildCommandSet commandSet;
-                var commandSetProcessor = new CommandSetProcessor(useCache, progressTracker);
-                if (!commandSetProcessor.Convert(buildInfo, out commandSet))
-                    return false;
+                BuildCommandSet commandSet = new BuildCommandSet();
+                if (exitCode >= BuildPipelineCodes.Success)
+                {
+                    var commandSetProcessor = new CommandSetProcessor(useCache, progressTracker);
+                    exitCode = commandSetProcessor.Convert(buildInfo, out commandSet);
+                }
 
                 // Write out resource files
-                List<BuildOutput.Result> output;
-                var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
-                if (!commandSetWriter.Convert(commandSet, settings, out output))
-                    return false;
+                List<BuildOutput.Result> output = new List<BuildOutput.Result>();
+                if (exitCode >= BuildPipelineCodes.Success)
+                {
+                    var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
+                    exitCode = commandSetWriter.Convert(commandSet, settings, out output);
+                }
 
                 // TODO: Restore Active Scenes
 
                 // Archive and compress resource files
-                var bundleCRCs = new Dictionary<string, uint>();
-                var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
-                if (!resourceArchiver.Convert(output, buildInfo.sceneResourceFiles, compression, outputFolder, out bundleCRCs))
-                    return false;
+                if (exitCode >= BuildPipelineCodes.Success)
+                {
+                    var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
+                    exitCode = resourceArchiver.Convert(output, buildInfo.sceneResourceFiles, compression, outputFolder, out result);
+                }
 
+                // Cleanup temp bundle write location. used only if cache is turned off
                 if (Directory.Exists(kTempBundleBuildPath))
                     Directory.Delete(kTempBundleBuildPath, true);
 
@@ -147,9 +142,7 @@ namespace UnityEditor.Build.AssetBundle
                 //    return false;
             }
 
-            // TODO: Switch back to previous platform
-
-            return true;
+            return exitCode >= BuildPipelineCodes.Success ? BuildPipelineCodes.Success : exitCode;
         }
     }
 }

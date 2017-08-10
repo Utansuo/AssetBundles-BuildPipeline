@@ -16,7 +16,10 @@ namespace UnityEditor.Build
         public Dictionary<GUID, BuildUsageTagGlobal> sceneUsageTags = new Dictionary<GUID, BuildUsageTagGlobal>();
 
         // Lookup maps for fast dependency calculation
-        public Dictionary<GUID, string> assetToBundle = new Dictionary<GUID, string>();
+        public Dictionary<GUID, List<string>> assetToBundles = new Dictionary<GUID, List<string>>();
         public Dictionary<string, List<GUID>> bundleToAssets = new Dictionary<string, List<GUID>>();
+
+        public HashSet<GUID> virtualAssets = new HashSet<GUID>();
+        public Dictionary<ObjectIdentifier, GUID> objectToVirtualAsset = new Dictionary<ObjectIdentifier, GUID>();
     }
 }

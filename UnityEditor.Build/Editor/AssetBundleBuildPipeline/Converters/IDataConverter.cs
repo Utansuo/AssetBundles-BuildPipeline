@@ -41,12 +41,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return ProgressTracker.UpdateProgress(info);
         }
 
-        public virtual void EndProgressBar()
+        public virtual bool EndProgressBar()
         {
             if (ProgressTracker == null)
-                return;
+                return true;
 
-            ProgressTracker.EndProgress();
+            return ProgressTracker.EndProgress();
         }
     }
 
@@ -54,27 +54,27 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
     {
         public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        public abstract bool Convert(I input, out O output);
+        public abstract BuildPipelineCodes Convert(I input, out O output);
     }
 
     public abstract class ADataConverter<I1, I2, O1> : ADataConverter
     {
         public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        public abstract bool Convert(I1 input, I2 input2, out O1 output);
+        public abstract BuildPipelineCodes Convert(I1 input, I2 input2, out O1 output);
     }
 
     public abstract class ADataConverter<I1, I2, I3, O1> : ADataConverter
     {
         public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        public abstract bool Convert(I1 input, I2 input2, I3 input3, out O1 output);
+        public abstract BuildPipelineCodes Convert(I1 input, I2 input2, I3 input3, out O1 output);
     }
 
     public abstract class ADataConverter<I1, I2, I3, I4, O1> : ADataConverter
     {
         public ADataConverter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        public abstract bool Convert(I1 input, I2 input2, I3 input3, I4 input4, out O1 output);
+        public abstract BuildPipelineCodes Convert(I1 input, I2 input2, I3 input3, I4 input4, out O1 output);
     }
 }

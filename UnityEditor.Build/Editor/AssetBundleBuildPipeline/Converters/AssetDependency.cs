@@ -34,7 +34,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, assetHash, dependencyHashes, settings);
         }
 
-        public override bool Convert(GUID asset, BuildSettings settings, out BuildCommandSet.AssetLoadInfo output)
+        public override BuildPipelineCodes Convert(GUID asset, BuildSettings settings, out BuildCommandSet.AssetLoadInfo output)
         {
             StartProgressBar("Calculating Asset Dependencies", 2);
 
@@ -42,28 +42,40 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             {
                 output = new BuildCommandSet.AssetLoadInfo();
                 EndProgressBar();
-                return false;
+                return BuildPipelineCodes.Error;
             }
 
             Hash128 hash = CalculateInputHash(asset, settings);
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
             {
-                EndProgressBar();
-                return true;
+                if (!EndProgressBar())
+                    return BuildPipelineCodes.Canceled;
+                return BuildPipelineCodes.SuccessCached;
             }
 
             output = new BuildCommandSet.AssetLoadInfo();
             output.asset = asset;
-            UpdateProgressBar("Calculating included objects");
+
+            if (!UpdateProgressBar("Calculating included objects"))
+            {
+                EndProgressBar();
+                return BuildPipelineCodes.Canceled;
+            }
             output.includedObjects = BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);
-            UpdateProgressBar("Calculating referenced objects");
+
+            if (!UpdateProgressBar("Calculating referenced objects"))
+            {
+                EndProgressBar();
+                return BuildPipelineCodes.Canceled;
+            }
             output.referencedObjects = BundleBuildInterface.GetPlayerDependenciesForObjects(output.includedObjects, settings.target, settings.typeDB);
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetDependency results for asset '{0}'.", asset);
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
     }
 }

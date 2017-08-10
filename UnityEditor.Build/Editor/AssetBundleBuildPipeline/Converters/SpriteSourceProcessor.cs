@@ -23,11 +23,15 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, assetLoadInfo, spriteRefCount);
         }
 
-        public override bool Convert(AssetInfoMap assetLoadInfo, out AssetInfoMap output)
+        public override BuildPipelineCodes Convert(AssetInfoMap assetLoadInfo, out AssetInfoMap output)
         {
             StartProgressBar("Stripping unused sprite source textures", 3);
 
-            UpdateProgressBar("Finding sprite source textures");
+            if (!UpdateProgressBar("Finding sprite source textures"))
+            {
+                output = null;
+                return BuildPipelineCodes.Canceled;
+            }
             var spriteRefCount = new Dictionary<ObjectIdentifier, int>();
             foreach (var assetInfo in assetLoadInfo)
             {
@@ -41,13 +45,17 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out output))
             {
                 EndProgressBar();
-                return true;
+                return BuildPipelineCodes.SuccessCached;
             }
 
             // Mutating the input, this is the only converter that does this
             output = assetLoadInfo;
 
-            UpdateProgressBar("Finding sprite source textures usage");
+            if (!UpdateProgressBar("Finding sprite source textures usage"))
+            {
+                EndProgressBar();
+                return BuildPipelineCodes.Canceled;
+            }
             foreach (var assetInfo in output)
             {
                 if (!string.IsNullOrEmpty(assetInfo.Value.processedScene))
@@ -64,7 +72,11 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 }
             }
 
-            UpdateProgressBar("Removing unused sprite source textures.");
+            if (!UpdateProgressBar("Removing unused sprite source textures."))
+            {
+                EndProgressBar();
+                return BuildPipelineCodes.Canceled;
+            }
             foreach (var source in spriteRefCount)
             {
                 if (source.Value > 0)
@@ -82,8 +94,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache SpriteSourceProcessor results.");
 
-            EndProgressBar();
-            return true;
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
     }
 }
