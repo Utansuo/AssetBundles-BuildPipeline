@@ -9,10 +9,11 @@ namespace UnityEditor.Build.Utilities
             return collection == null || collection.Count == 0;
         }
 
-        public static void GetOrAdd<TKey, TValue>(this IDictionary<TKey, List<TValue>>dictionary, TKey key, out List<TValue> value)
+        public static void GetOrAdd<TKey, TValue>(this IDictionary<TKey, List<TValue>> dictionary, TKey key, out List<TValue> value)
         {
             if (dictionary.TryGetValue(key, out value))
                 return;
+
             value = new List<TValue>();
             dictionary.Add(key, value);
         }
@@ -21,6 +22,7 @@ namespace UnityEditor.Build.Utilities
         {
             if (dictionary.TryGetValue(key, out value))
                 return;
+
             value = new HashSet<TValue>();
             dictionary.Add(key, value);
         }

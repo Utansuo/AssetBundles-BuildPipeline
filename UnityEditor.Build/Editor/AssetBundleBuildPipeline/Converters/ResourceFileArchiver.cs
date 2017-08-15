@@ -5,10 +5,11 @@ using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
 
 using SceneResourceMap = System.Collections.Generic.Dictionary<UnityEditor.GUID, UnityEditor.Experimental.Build.AssetBundle.ResourceFile[]>;
+using BundleCRCMap = System.Collections.Generic.Dictionary<string, uint>;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class ResourceFileArchiver : ADataConverter<List<BuildOutput.Result>, SceneResourceMap, BuildCompression, string, BundleBuildResult>
+    public class ResourceFileArchiver : ADataConverter<List<BuildOutput.Result>, SceneResourceMap, BuildCompression, string, BundleCRCMap>
     {
         public override uint Version { get { return 1; } }
 
@@ -25,11 +26,10 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, fileHashes, compression);
         }
 
-        public override BuildPipelineCodes Convert(List<BuildOutput.Result> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out BundleBuildResult output)
+        public override BuildPipelineCodes Convert(List<BuildOutput.Result> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out BundleCRCMap output)
         {
             StartProgressBar("Archiving Resource Files", writenData.Count);
-            output = new BundleBuildResult();
-            output.bundleCRCs = new Dictionary<string, uint>();
+            output = new BundleCRCMap();
 
             foreach (var bundle in writenData)
             {
@@ -55,7 +55,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 var filePath = string.Format("{0}/{1}", outputFolder, bundle.assetBundleName);
                 crc = BundleBuildInterface.ArchiveAndCompress(resourceFiles.ToArray(), filePath, compression);
-                output.bundleCRCs[filePath] = crc;
+                output[filePath] = crc;
 
                 if (UseCache && !TrySaveToCache(hash, bundle.assetBundleName, crc, outputFolder))
                     BuildLogger.LogWarning("Unable to cache ResourceFileArchiver result for bundle {0}.", bundle.assetBundleName);

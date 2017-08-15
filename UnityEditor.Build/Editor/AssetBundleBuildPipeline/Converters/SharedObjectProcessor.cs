@@ -54,19 +54,11 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         var objectID = asset.includedObjects[i];
 
                         HashSet<string> bundles;
-                        if (!objectToBundles.TryGetValue(objectID, out bundles))
-                        {
-                            bundles = new HashSet<string>();
-                            objectToBundles[objectID] = bundles;
-                        }
+                        objectToBundles.GetOrAdd(objectID, out bundles);
                         bundles.Add(dependencies[0]);
 
                         HashSet<GUID> assets;
-                        if (!objectToAssets.TryGetValue(objectID, out assets))
-                        {
-                            assets = new HashSet<GUID>();
-                            objectToAssets[objectID] = assets;
-                        }
+                        objectToAssets.GetOrAdd(objectID, out assets);
                         assets.Add(asset.asset);
                     }
                 }
@@ -80,19 +72,11 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         continue;
 
                     HashSet<string> bundles;
-                    if (!objectToBundles.TryGetValue(referenceID, out bundles))
-                    {
-                        bundles = new HashSet<string>();
-                        objectToBundles[referenceID] = bundles;
-                    }
+                    objectToBundles.GetOrAdd(referenceID, out bundles);
                     bundles.Add(dependencies[0]);
 
                     HashSet<GUID> assets;
-                    if (!objectToAssets.TryGetValue(referenceID, out assets))
-                    {
-                        assets = new HashSet<GUID>();
-                        objectToAssets[referenceID] = assets;
-                    }
+                    objectToAssets.GetOrAdd(referenceID, out assets);
                     assets.Add(asset.asset);
                 }
             }
@@ -112,12 +96,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     continue;
 
                 var bundleHash = HashingMethods.CalculateMD5Hash(objectPair.Value);
+
                 List<ObjectIdentifier> objectIDs;
-                if (!hashToObjects.TryGetValue(bundleHash, out objectIDs))
-                {
-                    objectIDs = new List<ObjectIdentifier>();
-                    hashToObjects[hash] = objectIDs;
-                }
+                hashToObjects.GetOrAdd(bundleHash, out objectIDs);
                 objectIDs.Add(objectPair.Key);
             }
 

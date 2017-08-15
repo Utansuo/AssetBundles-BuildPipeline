@@ -92,7 +92,7 @@ namespace UnityEditor.Build
         private void PickOutputFolder()
         {
             var folder = EditorUtility.SaveFolderPanel("Build output location", m_OutputProp.stringValue, "");
-            if (!string.IsNullOrEmpty(folder))
+            if (!string.IsNullOrEmpty(folder) && BuildPathValidator.ValidOutputFolder(folder, true))
             {
                 var relativeFolder = FileUtil.GetProjectRelativePath(folder);
                 m_OutputProp.stringValue = string.IsNullOrEmpty(relativeFolder) ? folder : relativeFolder;
@@ -102,6 +102,9 @@ namespace UnityEditor.Build
 
         private void PurgeOutputFolder()
         {
+            if (!BuildPathValidator.ValidOutputFolder(m_Settings.outputPath, true))
+                return;
+
             if (!EditorUtility.DisplayDialog("Purge Output Folder", "Do you really want to delete your output folder?", "Yes", "No"))
                 return;
 
@@ -111,9 +114,11 @@ namespace UnityEditor.Build
 
         private void BuildAssetBundles()
         {
+            if (!BuildPathValidator.ValidOutputFolder(m_Settings.outputPath, true))
+                return;
+
             var buildTimer = new Stopwatch();
             buildTimer.Start();
-
 
             var success = true;
             if (m_Settings.useExperimentalPipeline)
@@ -142,7 +147,7 @@ namespace UnityEditor.Build
                 compression = BuildCompression.DefaultLZMA;
 
             BundleBuildResult bundleResult;
-            var success = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, m_Settings.useBuildCache, out bundleResult);
+            var success = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, null, m_Settings.useBuildCache, out bundleResult);
             return success >= BuildPipelineCodes.Success;
         }
 

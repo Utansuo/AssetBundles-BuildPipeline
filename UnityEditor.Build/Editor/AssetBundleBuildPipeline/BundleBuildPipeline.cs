@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using UnityEditor.Build.AssetBundle.DataConverters;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
@@ -8,11 +8,18 @@ using UnityEditor.Sprites;
 
 namespace UnityEditor.Build.AssetBundle
 {
-    public class BundleBuildPipeline
+    public static class BundleBuildPipeline
     {
         public const string kTempBundleBuildPath = "Temp/BundleBuildData";
 
         public const string kDefaultOutputPath = "AssetBundles";
+
+        // TODO: Replace with calls to UnityEditor.Build.BuildPipelineInterfaces once i make it more generic & public
+        public static Func<BuildDependencyInformation, object, BuildPipelineCodes> PostBuildDependency;
+        // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
+        public static Func<BuildCommandSet, object, BuildPipelineCodes> PostBuildPacking;
+
+        public static Func<BundleBuildResult, object, BuildPipelineCodes> PostBuildWriting;
 
         public static BuildSettings GenerateBundleBuildSettings()
         {
@@ -39,12 +46,12 @@ namespace UnityEditor.Build.AssetBundle
             return settings;
         }
 
-        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BundleBuildResult result, bool useCache = true)
+        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BundleBuildResult result, object userData, bool useCache = true)
         {
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, useCache, out result);
+            var exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, userData, useCache, out result);
 
             buildTimer.Stop();
             if (exitCode == BuildPipelineCodes.Success)
@@ -71,7 +78,7 @@ namespace UnityEditor.Build.AssetBundle
             return BuildPipelineCodes.Success;
         }
 
-        internal static BuildPipelineCodes BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, bool useCache, out BundleBuildResult result)
+        internal static BuildPipelineCodes BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, object userData, bool useCache, out BundleBuildResult result)
         {
             // TODO: Until new AssetDatabaseV2 is online, we need to switch platforms
             EditorUserBuildSettings.SwitchActiveBuildTarget(settings.group, settings.target);
@@ -94,6 +101,14 @@ namespace UnityEditor.Build.AssetBundle
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
 
+                    if (PostBuildDependency != null)
+                    {
+                        exitCode = PostBuildDependency.Invoke(buildInfo, userData);
+                        if (exitCode < BuildPipelineCodes.Success)
+                            return exitCode;
+                    }
+                    
+                    // NOTE: This is just an example of using the SharedObjectProcessor. The AddressableAsset system will use this in the PostBuildDependency callback.
                     // Generate optional shared asset bundles
                     //var sharedObjectProcessor = new SharedObjectProcessor(useCache, progressTracker);
                     //exitCode = sharedObjectProcessor.Convert(buildInfo, true, out buildInfo);
@@ -113,16 +128,23 @@ namespace UnityEditor.Build.AssetBundle
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
 
+                    if (PostBuildPacking != null)
+                    {
+                        // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
+                        exitCode = PostBuildPacking.Invoke(commandSet, userData);
+                        if (exitCode < BuildPipelineCodes.Success)
+                            return exitCode;
+                    }
+
                     // Write out resource files
-                    List<BuildOutput.Result> output;
                     var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
-                    exitCode = commandSetWriter.Convert(commandSet, settings, out output);
+                    exitCode = commandSetWriter.Convert(commandSet, settings, out result.bundleDetails);
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
 
                     // Archive and compress resource files
                     var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
-                    exitCode = resourceArchiver.Convert(output, buildInfo.sceneResourceFiles, compression, outputFolder, out result);
+                    exitCode = resourceArchiver.Convert(result.bundleDetails, buildInfo.sceneResourceFiles, compression, outputFolder, out result.bundleCRCs);
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
 
@@ -131,6 +153,13 @@ namespace UnityEditor.Build.AssetBundle
                     //var manifestWriter = new Unity5ManifestWriter(useCache, true);
                     //if (!manifestWriter.Convert(commandSet, output, crc, outputFolder, out manifestfiles))
                     //    return false;
+
+                    if (PostBuildWriting != null)
+                    {
+                        exitCode = PostBuildWriting.Invoke(result, userData);
+                        if (exitCode < BuildPipelineCodes.Success)
+                            return exitCode;
+                    }
                 }
             }
 
