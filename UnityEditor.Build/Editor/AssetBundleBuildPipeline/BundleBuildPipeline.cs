@@ -85,61 +85,53 @@ namespace UnityEditor.Build.AssetBundle
                 if (exitCode < BuildPipelineCodes.Success)
                     return exitCode;
 
-                // TODO: Backup Active Scenes
-
-                // Generate dependency information for all assets in BuildInput
-                BuildDependencyInformation buildInfo;
-                var buildInputDependency = new BuildInputDependency(useCache, progressTracker);
-                exitCode = buildInputDependency.Convert(input, settings, out buildInfo);
-
-                // Generate optional shared asset bundles
-                //if (exitCode >= BuildPipelineCodes.Success)
-                //{
-                //    var sharedObjectProcessor = new SharedObjectProcessor(useCache, progressTracker);
-                //    exitCode = sharedObjectProcessor.Convert(buildInfo, true, out buildInfo);
-                //}
-
-                // Strip out sprite source textures if nothing references them directly
-                if (exitCode >= BuildPipelineCodes.Success)
+                using (var buildCleanup = new BuildStateCleanup(true, kTempBundleBuildPath))
                 {
+                    // Generate dependency information for all assets in BuildInput
+                    BuildDependencyInformation buildInfo;
+                    var buildInputDependency = new BuildInputDependency(useCache, progressTracker);
+                    exitCode = buildInputDependency.Convert(input, settings, out buildInfo);
+                    if (exitCode < BuildPipelineCodes.Success)
+                        return exitCode;
+
+                    // Generate optional shared asset bundles
+                    //var sharedObjectProcessor = new SharedObjectProcessor(useCache, progressTracker);
+                    //exitCode = sharedObjectProcessor.Convert(buildInfo, true, out buildInfo);
+                    //if (exitCode < BuildPipelineCodes.Success)
+                    //    return exitCode;
+
+                    // Strip out sprite source textures if nothing references them directly
                     var spriteSourceProcessor = new SpriteSourceProcessor(useCache, progressTracker);
                     exitCode = spriteSourceProcessor.Convert(buildInfo.assetLoadInfo, out buildInfo.assetLoadInfo);
-                }
+                    if (exitCode < BuildPipelineCodes.Success)
+                        return exitCode;
 
-                // Generate the commandSet from the calculated dependency information
-                BuildCommandSet commandSet = new BuildCommandSet();
-                if (exitCode >= BuildPipelineCodes.Success)
-                {
+                    // Generate the commandSet from the calculated dependency information
+                    BuildCommandSet commandSet;
                     var commandSetProcessor = new CommandSetProcessor(useCache, progressTracker);
                     exitCode = commandSetProcessor.Convert(buildInfo, out commandSet);
-                }
+                    if (exitCode < BuildPipelineCodes.Success)
+                        return exitCode;
 
-                // Write out resource files
-                List<BuildOutput.Result> output = new List<BuildOutput.Result>();
-                if (exitCode >= BuildPipelineCodes.Success)
-                {
+                    // Write out resource files
+                    List<BuildOutput.Result> output;
                     var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
                     exitCode = commandSetWriter.Convert(commandSet, settings, out output);
-                }
+                    if (exitCode < BuildPipelineCodes.Success)
+                        return exitCode;
 
-                // TODO: Restore Active Scenes
-
-                // Archive and compress resource files
-                if (exitCode >= BuildPipelineCodes.Success)
-                {
+                    // Archive and compress resource files
                     var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
                     exitCode = resourceArchiver.Convert(output, buildInfo.sceneResourceFiles, compression, outputFolder, out result);
+                    if (exitCode < BuildPipelineCodes.Success)
+                        return exitCode;
+
+                    // Generate Unity5 compatible manifest files
+                    //string[] manifestfiles;
+                    //var manifestWriter = new Unity5ManifestWriter(useCache, true);
+                    //if (!manifestWriter.Convert(commandSet, output, crc, outputFolder, out manifestfiles))
+                    //    return false;
                 }
-
-                // Cleanup temp bundle write location. used only if cache is turned off
-                if (Directory.Exists(kTempBundleBuildPath))
-                    Directory.Delete(kTempBundleBuildPath, true);
-
-                // Generate Unity5 compatible manifest files
-                //string[] manifestfiles;
-                //var manifestWriter = new Unity5ManifestWriter(useCache, true);
-                //if (!manifestWriter.Convert(commandSet, output, crc, outputFolder, out manifestfiles))
-                //    return false;
             }
 
             return exitCode >= BuildPipelineCodes.Success ? BuildPipelineCodes.Success : exitCode;

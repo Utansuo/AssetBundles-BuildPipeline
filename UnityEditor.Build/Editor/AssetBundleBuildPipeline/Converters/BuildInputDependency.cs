@@ -50,6 +50,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                             return BuildPipelineCodes.Canceled;
                         }
 
+                        // Get Scene Dependency Information
                         SceneLoadInfo sceneInfo;
                         BuildPipelineCodes errorCode = m_SceneDependency.Convert(asset.asset, settings, out sceneInfo);
                         if (errorCode < BuildPipelineCodes.Success)
@@ -58,6 +59,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                             return errorCode;
                         }
 
+                        // Convert Scene Dependency Information to Asset Load Information
                         var assetInfo = new BuildCommandSet.AssetLoadInfo();
                         assetInfo.asset = asset.asset;
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
@@ -65,13 +67,20 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         assetInfo.includedObjects = new ObjectIdentifier[0];
                         assetInfo.referencedObjects = sceneInfo.referencedObjects.ToArray();
                         
+                        // Add generated scene information to BuildDependencyInformation
                         output.sceneResourceFiles.Add(asset.asset, sceneInfo.resourceFiles.ToArray());
                         output.sceneUsageTags.Add(asset.asset, sceneInfo.globalUsage);
                         output.assetLoadInfo.Add(asset.asset, assetInfo);
 
+                        // Add the current bundle as dependency[0]
                         List<string> bundles = new List<string>();
                         bundles.Add(bundle.assetBundleName);
                         output.assetToBundles.Add(asset.asset , bundles);
+
+                        // Add the current asset to the list of assets for a bundle
+                        List<GUID> bundleAssets;
+                        output.bundleToAssets.GetOrAdd(bundle.assetBundleName, out bundleAssets);
+                        bundleAssets.Add(asset.asset);
                     }
                     else if (AssetDependency.ValidAsset(asset.asset))
                     {
@@ -81,6 +90,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                             return BuildPipelineCodes.Canceled;
                         }
 
+                        // Get Asset Dependency Information
                         BuildCommandSet.AssetLoadInfo assetInfo;
                         BuildPipelineCodes errorCode = m_AssetDependency.Convert(asset.asset, settings, out assetInfo);
                         if (errorCode < BuildPipelineCodes.Success)
@@ -89,12 +99,21 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                             return errorCode;
                         }
 
+                        // Convert Asset Dependency Information to Asset Load Information
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
+
+                        // Add generated scene information to BuildDependencyInformation
                         output.assetLoadInfo.Add(asset.asset, assetInfo);
 
+                        // Add the current bundle as dependency[0]
                         List<string> bundles = new List<string>();
                         bundles.Add(bundle.assetBundleName);
                         output.assetToBundles.Add(asset.asset, bundles);
+
+                        // Add the current asset to the list of assets for a bundle
+                        List<GUID> bundleAssets;
+                        output.bundleToAssets.GetOrAdd(bundle.assetBundleName, out bundleAssets);
+                        bundleAssets.Add(asset.asset);
                     }
                     else
                     {
@@ -107,12 +126,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 }
             }
 
-            if (!UpdateProgressBar("Calculating inter-bundle dependencies"))
+            if (!UpdateProgressBar("Calculating asset to bundle dependencies"))
             {
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
 
+            // Generate the explicit asset to bundle dependency lookup
             foreach (var asset in output.assetLoadInfo.Values)
             {
                 var assetBundles = output.assetToBundles[asset.asset];

@@ -39,6 +39,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
+
             // Generate mapping of each object to the bundles it would be used by
             var objectToBundles = new Dictionary<ObjectIdentifier, HashSet<string>>();
             var objectToAssets = new Dictionary<ObjectIdentifier, HashSet<GUID>>();
@@ -96,11 +97,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 }
             }
 
+
             if (!UpdateProgressBar("Finding set of reused objects"))
             {
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
+
             // Generate the set of reused objects
             var hashToObjects = new Dictionary<Hash128, List<ObjectIdentifier>>();
             foreach (var objectPair in objectToBundles)
@@ -118,28 +121,42 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 objectIDs.Add(objectPair.Key);
             }
 
+
             if (!UpdateProgressBar("Creating shared object bundles"))
             {
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
+
             // Generate Shared Bundles
             foreach (var hashPair in hashToObjects)
             {
+                // Generate Dependency Information for virtual asset
                 var assetInfo = new BuildCommandSet.AssetLoadInfo();
                 assetInfo.asset = new GUID(hashPair.Key.ToString());
                 assetInfo.address = hashPair.Key.ToString();
                 assetInfo.includedObjects = hashPair.Value.ToArray();
                 Array.Sort(assetInfo.includedObjects);
 
+                // Add new AssetLoadInfo for virtual asset
                 output.assetLoadInfo.Add(assetInfo.asset, assetInfo);
                 var assetBundles = new List<string>();
                 assetBundles.Add(assetInfo.address);
-                output.assetToBundles.Add(assetInfo.asset, assetBundles);
-                output.virtualAssets.Add(assetInfo.asset);
 
+                // Add new bundle as dependency[0] for virtual asset
+                output.assetToBundles.Add(assetInfo.asset, assetBundles);
+                var bundleAssets = new List<GUID>();
+                bundleAssets.Add(assetInfo.asset);
+
+                // Add virtual asset to the list of assets for new bundle
+                output.bundleToAssets.Add(assetInfo.address, bundleAssets);
+
+                // Add virtual asset to lookup
+                output.virtualAssets.Add(assetInfo.asset);
+                
                 foreach (var objectID in assetInfo.includedObjects)
                 {
+                    // Add objects in virtual asset to lookup
                     output.objectToVirtualAsset.Add(objectID, assetInfo.asset);
                     var assets = objectToAssets[objectID];
                     foreach (var asset in assets)
@@ -150,6 +167,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         if (assetBundles.Contains(assetInfo.address))
                             continue;
 
+                        // Add new bundle as dependency to assets referencing virtual asset objects
                         assetBundles.Add(assetInfo.address);
                     }
                 }

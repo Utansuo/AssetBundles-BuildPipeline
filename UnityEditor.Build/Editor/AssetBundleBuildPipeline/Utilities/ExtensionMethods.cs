@@ -9,6 +9,22 @@ namespace UnityEditor.Build.Utilities
             return collection == null || collection.Count == 0;
         }
 
+        public static void GetOrAdd<TKey, TValue>(this IDictionary<TKey, List<TValue>>dictionary, TKey key, out List<TValue> value)
+        {
+            if (dictionary.TryGetValue(key, out value))
+                return;
+            value = new List<TValue>();
+            dictionary.Add(key, value);
+        }
+
+        public static void GetOrAdd<TKey, TValue>(this IDictionary<TKey, HashSet<TValue>> dictionary, TKey key, out HashSet<TValue> value)
+        {
+            if (dictionary.TryGetValue(key, out value))
+                return;
+            value = new HashSet<TValue>();
+            dictionary.Add(key, value);
+        }
+
         public static void Swap<T>(this IList<T> array, int index1, int index2)
         {
             var t = array[index2];

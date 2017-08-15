@@ -71,11 +71,13 @@ namespace UnityEditor.Build.Player
             BuildPipelineCodes exitCode;
             using (var progressTracker = new BuildProgressTracker(1))
             {
-                var scriptDependency = new ScriptDependency(useCache, progressTracker);
-                exitCode = scriptDependency.Convert(settings, kTempPlayerBuildPath, out result);
-
-                if (Directory.Exists(kTempPlayerBuildPath))
-                    Directory.Delete(kTempPlayerBuildPath, true);
+                using (var buildCleanup = new BuildStateCleanup(false, kTempPlayerBuildPath))
+                {
+                    var scriptDependency = new ScriptDependency(useCache, progressTracker);
+                    exitCode = scriptDependency.Convert(settings, kTempPlayerBuildPath, out result);
+                    if (exitCode < BuildPipelineCodes.Success)
+                        return exitCode;
+                }
             }
             return exitCode >= BuildPipelineCodes.Success ? BuildPipelineCodes.Success : exitCode;
         }
