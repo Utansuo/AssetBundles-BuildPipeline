@@ -91,13 +91,36 @@ namespace UnityEditor.Build
 
         private void PickOutputFolder()
         {
-            var folder = EditorUtility.SaveFolderPanel("Build output location", m_OutputProp.stringValue, "");
-            if (!string.IsNullOrEmpty(folder) && BuildPathValidator.ValidOutputFolder(folder, true))
+            var folder = m_OutputProp.stringValue;
+            if (!Directory.Exists(folder))
             {
+                folder = "Builds";
+                Directory.CreateDirectory(folder);
+            }
+
+            // I feed dirty using while(true) =(
+            while(true)
+            {
+                folder = EditorUtility.SaveFolderPanel("Build output location", folder, "");
+                if (string.IsNullOrEmpty(folder))
+                {
+                    GUIUtility.keyboardControl = 0;
+                    return;
+                }
+
+                if (!BuildPathValidator.ValidOutputFolder(folder, false))
+                {
+                    if (!EditorUtility.DisplayDialog("Build output location error", string.Format(BuildPathValidator.kPathNotValidError, folder), "Ok", "Cancel"))
+                        return;
+
+                    continue;
+                }
+
                 var relativeFolder = FileUtil.GetProjectRelativePath(folder);
                 m_OutputProp.stringValue = string.IsNullOrEmpty(relativeFolder) ? folder : relativeFolder;
-            }
-            GUIUtility.keyboardControl = 0;
+                GUIUtility.keyboardControl = 0;
+                return;
+            } 
         }
 
         private void PurgeOutputFolder()
