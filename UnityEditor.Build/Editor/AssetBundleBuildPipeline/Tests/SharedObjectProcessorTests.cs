@@ -28,7 +28,6 @@ namespace UnityEditor.Build.Tests
 
             var prefab1 = new GUID("00000000000000000000000000000001");
             var prefab2 = new GUID("00000000000000000000000000000002");
-            var fbx = new GUID("00000000000000000000000000000010");
 
             var virtualAsset = new GUID("21000000360000004b000000d3000000");
             var virtualObject1 = dependency.assetLoadInfo[prefab1].referencedObjects[0];    // Mesh
