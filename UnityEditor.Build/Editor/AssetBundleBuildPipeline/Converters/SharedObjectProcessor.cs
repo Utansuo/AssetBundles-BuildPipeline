@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
@@ -95,7 +96,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 if (objectPair.Value.Count <= 1)
                     continue;
 
-                var bundleHash = HashingMethods.CalculateMD5Hash(objectPair.Value);
+                var bundleHash = HashingMethods.CalculateMD5Hash(objectPair.Value.ToArray());
 
                 List<ObjectIdentifier> objectIDs;
                 hashToObjects.GetOrAdd(bundleHash, out objectIDs);
@@ -117,7 +118,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 assetInfo.asset = new GUID(hashPair.Key.ToString());
                 assetInfo.address = hashPair.Key.ToString();
                 assetInfo.includedObjects = hashPair.Value.ToArray();
-                Array.Sort(assetInfo.includedObjects);
+                Array.Sort(assetInfo.includedObjects, (x, y) => { if (x < y) return -1; if (x > y) return 1; return 0; });
 
                 // Add new AssetLoadInfo for virtual asset
                 output.assetLoadInfo.Add(assetInfo.asset, assetInfo);
