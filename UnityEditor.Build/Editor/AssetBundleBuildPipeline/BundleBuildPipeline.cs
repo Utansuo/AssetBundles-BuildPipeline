@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEditor.Build.AssetBundle.DataConverters;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
+using UnityEditor.SceneManagement;
 using UnityEditor.Sprites;
 
 namespace UnityEditor.Build.AssetBundle
@@ -46,12 +46,12 @@ namespace UnityEditor.Build.AssetBundle
             return settings;
         }
 
-        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BundleBuildResult result, object userData, bool useCache = true)
+        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BundleBuildResult result, object callbackUserData = null, bool useCache = true)
         {
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, userData, useCache, out result);
+            var exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, callbackUserData, useCache, out result);
 
             buildTimer.Stop();
             if (exitCode == BuildPipelineCodes.Success)
@@ -59,7 +59,7 @@ namespace UnityEditor.Build.AssetBundle
             else if (exitCode == BuildPipelineCodes.Canceled)
                 BuildLogger.LogWarning("Build Asset Bundles canceled in: {0:c}", buildTimer.Elapsed);
             else
-                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
+                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}. Error: {1}.", buildTimer.Elapsed, exitCode);
 
             return exitCode;
         }
@@ -78,13 +78,17 @@ namespace UnityEditor.Build.AssetBundle
             return BuildPipelineCodes.Success;
         }
 
-        internal static BuildPipelineCodes BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, object userData, bool useCache, out BundleBuildResult result)
+        internal static BuildPipelineCodes BuildAssetBundles_Internal(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, object callbackUserData, bool useCache, out BundleBuildResult result)
         {
+            BuildPipelineCodes exitCode;
+            result = new BundleBuildResult();
+            
+            if (ProjectValidator.UnsavedChanges())
+                return BuildPipelineCodes.UnsavedChanges;
+
             // TODO: Until new AssetDatabaseV2 is online, we need to switch platforms
             EditorUserBuildSettings.SwitchActiveBuildTarget(settings.group, settings.target);
 
-            BuildPipelineCodes exitCode;
-            result = new BundleBuildResult();
             using (var progressTracker = new BuildProgressTracker(6))
             {
                 // Rebuild sprite atlas cache for correct dependency calculation & writing
@@ -103,7 +107,7 @@ namespace UnityEditor.Build.AssetBundle
 
                     if (PostBuildDependency != null)
                     {
-                        exitCode = PostBuildDependency.Invoke(buildInfo, userData);
+                        exitCode = PostBuildDependency.Invoke(buildInfo, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }
@@ -131,7 +135,7 @@ namespace UnityEditor.Build.AssetBundle
                     if (PostBuildPacking != null)
                     {
                         // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
-                        exitCode = PostBuildPacking.Invoke(commandSet, userData);
+                        exitCode = PostBuildPacking.Invoke(commandSet, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }
@@ -156,7 +160,7 @@ namespace UnityEditor.Build.AssetBundle
 
                     if (PostBuildWriting != null)
                     {
-                        exitCode = PostBuildWriting.Invoke(result, userData);
+                        exitCode = PostBuildWriting.Invoke(result, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }

@@ -47,6 +47,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             }
 
             output = PlayerBuildInterface.CompilePlayerScripts(settings, outputFolder);
+            if (output.assemblies.IsNullOrEmpty() && output.typeDB == null)
+                return BuildPipelineCodes.Error;
 
             if (UseCache && !TrySaveToCache(hash, output, outputFolder))
                 BuildLogger.LogWarning("Unable to cache ScriptDependency results.");

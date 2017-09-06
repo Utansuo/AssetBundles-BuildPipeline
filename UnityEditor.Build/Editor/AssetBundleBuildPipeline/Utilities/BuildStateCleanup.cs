@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using UnityEditor.SceneManagement;
 
 namespace UnityEditor.Build.Utilities
 {
@@ -8,13 +9,13 @@ namespace UnityEditor.Build.Utilities
         private bool m_SceneBackup;
         private string m_TempPath;
 
+        private SceneSetup[] m_Scenes;
+
         public BuildStateCleanup(bool sceneBackupAndRestore, string tempBuildPath)
         {
             m_SceneBackup = sceneBackupAndRestore;
             if (m_SceneBackup)
-            {
-                // TODO: Backup Scenes
-            }
+                m_Scenes = EditorSceneManager.GetSceneManagerSetup();
 
             m_TempPath = tempBuildPath;
             Directory.CreateDirectory(m_TempPath);
@@ -24,7 +25,10 @@ namespace UnityEditor.Build.Utilities
         {
             if (m_SceneBackup)
             {
-                // TODO: Restore Scenes
+                if (!m_Scenes.IsNullOrEmpty())
+                    EditorSceneManager.RestoreSceneManagerSetup(m_Scenes);
+                else
+                    EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects);
             }
 
             if (Directory.Exists(m_TempPath))

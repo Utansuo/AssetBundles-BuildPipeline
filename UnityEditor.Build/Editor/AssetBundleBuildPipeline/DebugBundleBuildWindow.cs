@@ -150,7 +150,10 @@ namespace UnityEditor.Build
                 success = LegacyBuildPipeline();
 
             buildTimer.Stop();
-            BuildLogger.Log("Build Asset Bundles {0} in: {1:c}", success ? "completed" : "failed", buildTimer.Elapsed);
+            if (success)
+                BuildLogger.Log("Build Asset Bundles successful in: {0:c}", buildTimer.Elapsed);
+            else
+                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
         }
 
         private bool ExperimentalBuildPipeline()
