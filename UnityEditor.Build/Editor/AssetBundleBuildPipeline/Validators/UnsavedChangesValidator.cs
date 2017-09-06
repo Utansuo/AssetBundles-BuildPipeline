@@ -17,8 +17,7 @@ namespace UnityEditor.Build.Utilities
                 break;
             }
 
-            // TODO: Check for asset changes
-
+            unsavedChanges |= AssetDatabase.HasDirtyAssets();
             return unsavedChanges;
         }
     }
