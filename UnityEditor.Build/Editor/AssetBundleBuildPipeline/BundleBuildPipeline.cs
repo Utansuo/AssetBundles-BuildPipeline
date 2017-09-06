@@ -51,7 +51,14 @@ namespace UnityEditor.Build.AssetBundle
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, callbackUserData, useCache, out result);
+            var exitCode = BuildPipelineCodes.Success;
+            if (ProjectValidator.HasDirtyScenes())
+            {
+                result = new BundleBuildResult();
+                exitCode = BuildPipelineCodes.UnsavedChanges;
+            }
+            else
+                exitCode = BuildAssetBundles_Internal(input, settings, compression, outputFolder, callbackUserData, useCache, out result);
 
             buildTimer.Stop();
             if (exitCode == BuildPipelineCodes.Success)
@@ -82,9 +89,8 @@ namespace UnityEditor.Build.AssetBundle
         {
             BuildPipelineCodes exitCode;
             result = new BundleBuildResult();
-            
-            if (ProjectValidator.UnsavedChanges())
-                return BuildPipelineCodes.UnsavedChanges;
+
+            AssetDatabase.SaveAssets();
 
             // TODO: Until new AssetDatabaseV2 is online, we need to switch platforms
             EditorUserBuildSettings.SwitchActiveBuildTarget(settings.group, settings.target);
