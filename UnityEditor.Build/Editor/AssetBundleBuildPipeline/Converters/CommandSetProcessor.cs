@@ -61,7 +61,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     
                     foreach (var includedObject in assetInfo.includedObjects)
                     {
-                        if (buildInfo.objectToVirtualAsset.ContainsKey(includedObject))
+                        if (!buildInfo.virtualAssets.Contains(asset) && buildInfo.objectToVirtualAsset.ContainsKey(includedObject))
                             continue;
 
                         assetBundleObjects.Add(new BuildCommandSet.SerializationInfo
