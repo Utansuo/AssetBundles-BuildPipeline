@@ -118,6 +118,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 assetInfo.asset = new GUID(hashPair.Key.ToString());
                 assetInfo.address = hashPair.Key.ToString();
                 assetInfo.includedObjects = hashPair.Value.ToArray();
+                assetInfo.referencedObjects = new ObjectIdentifier[0];
                 Array.Sort(assetInfo.includedObjects, (x, y) => { if (x < y) return -1; if (x > y) return 1; return 0; });
 
                 // Add new AssetLoadInfo for virtual asset

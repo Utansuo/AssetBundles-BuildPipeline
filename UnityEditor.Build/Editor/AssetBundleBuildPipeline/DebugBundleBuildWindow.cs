@@ -6,6 +6,7 @@ using UnityEditor.Build.Player;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEditor.Experimental.Build.Player;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace UnityEditor.Build
@@ -138,31 +139,39 @@ namespace UnityEditor.Build
         private void BuildAssetBundles()
         {
             if (!BuildPathValidator.ValidOutputFolder(m_Settings.outputPath, true))
+            {
+                EditorUtility.DisplayDialog("Invalid Output Folder", string.Format(BuildPathValidator.kPathNotValidError, m_Settings.outputPath), "Ok");
+                return;
+            }
+
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
 
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var success = true;
+            var exitCode = BuildPipelineCodes.Success;
             if (m_Settings.useExperimentalPipeline)
-                success = ExperimentalBuildPipeline();
+                exitCode = ExperimentalBuildPipeline();
             else
-                success = LegacyBuildPipeline();
+                exitCode = LegacyBuildPipeline();
 
             buildTimer.Stop();
-            if (success)
+            if (exitCode == BuildPipelineCodes.Success)
                 BuildLogger.Log("Build Asset Bundles successful in: {0:c}", buildTimer.Elapsed);
+            else if (exitCode == BuildPipelineCodes.Canceled)
+                BuildLogger.LogWarning("Build Asset Bundles canceled in: {0:c}", buildTimer.Elapsed);
             else
-                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}", buildTimer.Elapsed);
+                BuildLogger.LogError("Build Asset Bundles failed in: {0:c}. Error: {1}.", buildTimer.Elapsed, exitCode);
         }
 
-        private bool ExperimentalBuildPipeline()
+        private BuildPipelineCodes ExperimentalBuildPipeline()
         {
             var playerSettings = PlayerBuildPipeline.GeneratePlayerBuildSettings(m_Settings.buildTarget, m_Settings.buildGroup);
             ScriptCompilationResult scriptResults;
             var errorCode = PlayerBuildPipeline.BuildPlayerScripts(playerSettings, out scriptResults);
             if (errorCode < BuildPipelineCodes.Success)
-                return false;
+                return errorCode;
 
             var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(m_Settings.buildTarget, m_Settings.buildGroup);
 
@@ -173,11 +182,11 @@ namespace UnityEditor.Build
                 compression = BuildCompression.DefaultLZMA;
 
             BundleBuildResult bundleResult;
-            var success = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, null, m_Settings.useBuildCache, out bundleResult);
-            return success >= BuildPipelineCodes.Success;
+            errorCode = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, null, m_Settings.useBuildCache, out bundleResult);
+            return errorCode;
         }
 
-        private bool LegacyBuildPipeline()
+        private BuildPipelineCodes LegacyBuildPipeline()
         {
             var options = BuildAssetBundleOptions.None;
             if (m_Settings.compressionType == CompressionType.None)
@@ -190,7 +199,7 @@ namespace UnityEditor.Build
 
             Directory.CreateDirectory(m_Settings.outputPath);
             var manifest = BuildPipeline.BuildAssetBundles(m_Settings.outputPath, options, m_Settings.buildTarget);
-            return manifest != null;
+            return manifest != null ? BuildPipelineCodes.Success : BuildPipelineCodes.Error;
         }
     }
 }
