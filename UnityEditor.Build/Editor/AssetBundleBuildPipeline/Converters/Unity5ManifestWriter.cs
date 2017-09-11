@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using UnityEditor.Build.Cache;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
@@ -32,36 +31,48 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
     //- C:/Projects/AssetBundlesHLAPI/AssetBundles/shaders
 
 
-    public class Unity5ManifestWriter : IDataConverter<BuildCommandSet, BuildOutput, uint[], string, string[]>
+    public class Unity5ManifestWriter : ADataConverter<BuildCommandSet, BuildOutput, uint[], string, string[]>
     {
-        public uint Version { get { return 1; } }
+        public override uint Version { get { return 1; } }
+
+        public Unity5ManifestWriter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
         public Hash128 CalculateInputHash(BuildCommandSet commands, BuildOutput output, uint[] crcs, string outputFolder)
         {
+            if (!UseCache)
+                return new Hash128();
+
             return HashingMethods.CalculateMD5Hash(Version, commands, output, crcs);
         }
 
-        public bool Convert(BuildCommandSet commands, BuildOutput output, uint[] crcs, string outputFolder, out string[] manifestFiles, bool useCache = true)
+        public override BuildPipelineCodes Convert(BuildCommandSet commands, BuildOutput output, uint[] crcs, string outputFolder, out string[] manifestFiles)
         {
+            StartProgressBar("Writing Asset Bundle Manifests", commands.commands.Length);
+
             // If enabled, try loading from cache
-            var hash = CalculateInputHash(commands, output, crcs, outputFolder);
-            if (useCache && LoadFromCache(hash, outputFolder, out manifestFiles))
-                return true;
-            
+            Hash128 hash = CalculateInputHash(commands, output, crcs, outputFolder);
+            if (UseCache && LoadFromCache(hash, outputFolder, out manifestFiles))
+            {
+                EndProgressBar();
+                return BuildPipelineCodes.SuccessCached;
+            }
+
             // Convert inputs
             var manifests = new List<string>();
             if (output.results.IsNullOrEmpty())
             {
                 manifestFiles = manifests.ToArray();
-                BuildLogger.LogError("Unable to continue writting manifests. No asset bundle results.");
-                return false;
+                BuildLogger.LogError("Unable to continue writing manifests. No asset bundle results.");
+                EndProgressBar();
+                return BuildPipelineCodes.Error;
             }
 
             // TODO: Prepare settings.outputFolder
             Directory.CreateDirectory(outputFolder);
 
-            for (var i = 0; i < output.results.Length; i++)
+            for (var i = 0; i < output.results.Count; i++)
             {
+                UpdateProgressBar(string.Format("Bundle: {0}", output.results[i].assetBundleName));
                 var manifestPath = GetManifestFilePath(output.results[i].assetBundleName, outputFolder);
                 manifests.Add(string.Format("{0}.manifest", output.results[i].assetBundleName));
                 using (var stream = new StreamWriter(manifestPath))
@@ -122,11 +133,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             }
 
             manifestFiles = manifests.ToArray();
-            
-            // Cache results
-            if (useCache)
-                SaveToCache(hash, outputFolder, manifestFiles);
-            return true;
+
+            if (UseCache && !SaveToCache(hash, outputFolder, manifestFiles))
+                BuildLogger.LogWarning("Unable to cache Unity5ManifestWriter results.");
+
+            if (!EndProgressBar())
+                return BuildPipelineCodes.Canceled;
+            return BuildPipelineCodes.Success;
         }
 
         private bool LoadFromCache(Hash128 hash, string outputFolder, out string[] manifestFiles)
@@ -153,9 +166,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return false;
         }
 
-        private void SaveToCache(Hash128 hash, string outputFolder, string[] manifestFiles)
+        private bool SaveToCache(Hash128 hash, string outputFolder, string[] manifestFiles)
         {
-            BuildCache.SaveCachedArtifacts(hash, manifestFiles, outputFolder);
+            return BuildCache.SaveCachedArtifacts(hash, manifestFiles, outputFolder);
         }
 
         private static string GetManifestFilePath(string bundleName, string outputFolder)
@@ -163,5 +176,4 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return string.Format("{0}/{1}.manifest", outputFolder, bundleName);
         }
     }
-
 }

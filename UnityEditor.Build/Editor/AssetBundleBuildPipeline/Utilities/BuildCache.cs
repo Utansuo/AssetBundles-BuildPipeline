@@ -1,28 +1,27 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-using UnityEditor.Build.Utilities;
 using UnityEngine;
 
-namespace UnityEditor.Build.Cache
+namespace UnityEditor.Build.Utilities
 {
     public static class BuildCache
     {
         private const string kCachePath = "Library/BuildCache";
 
-        private static string GetPathForCachedResults(Hash128 hash)
+        public static string GetPathForCachedResults(Hash128 hash)
         {
             var file = hash.ToString();
             return string.Format("{0}/{1}/{2}/Results", kCachePath, file.Substring(0, 2), file);
         }
 
-        private static string GetPathForCachedArtifacts(Hash128 hash)
+        public static string GetPathForCachedArtifacts(Hash128 hash)
         {
             var file = hash.ToString();
             return string.Format("{0}/{1}/{2}/Artifacts", kCachePath, file.Substring(0, 2), file);
         }
 
-        [MenuItem("AssetBundles/Purge Build Cache")]
+        [MenuItem("Window/Build Pipeline/Purge Build Cache", priority = 10)]
         public static void PurgeCache()
         {
             if (!EditorUtility.DisplayDialog("Purge Build Cache", "Do you really want to purge your entire build cache?", "Yes", "No"))
@@ -93,6 +92,8 @@ namespace UnityEditor.Build.Cache
             }
             catch (Exception)
             {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
                 return false;
             }
             return true;
@@ -102,30 +103,54 @@ namespace UnityEditor.Build.Cache
         {
             var path = GetPathForCachedArtifacts(hash);
 
+            var result = true;
             try
             {
                 Directory.CreateDirectory(path);
                 foreach (var artifact in artifactPaths)
                 {
                     var source = string.Format("{0}/{1}", rootPath, artifact);
-                    if (File.Exists(source))
-                        File.Copy(source, string.Format("{0}/{1}", path, artifact), true);
-                    else
+                    if (!File.Exists(source))
+                    {
                         BuildLogger.LogWarning("Unable to find source file '{0}' to add to the build cache.", artifact);
+                        result = false;
+                        continue;
+                    }
+                    else if (result)
+                    {
+                        var copyToPath = string.Format("{0}/{1}", path, artifact);
+                        var directory = Path.GetDirectoryName(copyToPath);
+                        Directory.CreateDirectory(directory);
+                        File.Copy(source, copyToPath, true);
+                    }
                 }
             }
             catch (Exception)
             {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
                 return false;
             }
-            return true;
+
+            if (!result && Directory.Exists(path))
+                Directory.Delete(path, true);
+            return result;
         }
 
         public static bool SaveCachedResultsAndArtifacts<T>(Hash128 hash, T results, string[] artifactPaths, string rootPath)
         {
-            if (!SaveCachedResults(hash, results))
-                return false;
-            return SaveCachedArtifacts(hash, artifactPaths, rootPath);
+            if (SaveCachedResults(hash, results) && SaveCachedArtifacts(hash, artifactPaths, rootPath))
+                return true;
+            
+            var path = GetPathForCachedResults(hash);
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
+
+            path = GetPathForCachedArtifacts(hash);
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
+            
+            return false;
         }
     }
 }
