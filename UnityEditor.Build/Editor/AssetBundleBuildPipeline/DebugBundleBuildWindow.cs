@@ -62,7 +62,7 @@ namespace UnityEditor.Build
         private void OnGUI()
         {
             m_SerializedObject.Update();
-            
+
             EditorGUILayout.PropertyField(m_TargetProp);
             EditorGUILayout.PropertyField(m_GroupProp);
             EditorGUILayout.PropertyField(m_CompressionProp);
@@ -74,7 +74,7 @@ namespace UnityEditor.Build
             if (GUILayout.Button("Pick", GUILayout.Width(50)))
                 PickOutputFolder();
             EditorGUILayout.EndHorizontal();
-            
+
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Purge Cache"))
                 BuildCache.PurgeCache();
@@ -100,7 +100,7 @@ namespace UnityEditor.Build
             }
 
             // I feed dirty using while(true) =(
-            while(true)
+            while (true)
             {
                 folder = EditorUtility.SaveFolderPanel("Build output location", folder, "");
                 if (string.IsNullOrEmpty(folder))
@@ -121,7 +121,7 @@ namespace UnityEditor.Build
                 m_OutputProp.stringValue = string.IsNullOrEmpty(relativeFolder) ? folder : relativeFolder;
                 GUIUtility.keyboardControl = 0;
                 return;
-            } 
+            }
         }
 
         private void PurgeOutputFolder()
@@ -147,14 +147,16 @@ namespace UnityEditor.Build
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
 
+            if (m_Settings.useExperimentalPipeline)
+            {
+                ExperimentalBuildPipeline();
+                return;
+            }
+
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var exitCode = BuildPipelineCodes.Success;
-            if (m_Settings.useExperimentalPipeline)
-                exitCode = ExperimentalBuildPipeline();
-            else
-                exitCode = LegacyBuildPipeline();
+            var exitCode = LegacyBuildPipeline();
 
             buildTimer.Stop();
             if (exitCode == BuildPipelineCodes.Success)
@@ -182,7 +184,7 @@ namespace UnityEditor.Build
                 compression = BuildCompression.DefaultLZMA;
 
             BundleBuildResult bundleResult;
-            errorCode = BundleBuildPipeline.BuildAssetBundles_Internal(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, null, m_Settings.useBuildCache, out bundleResult);
+            errorCode = BundleBuildPipeline.BuildAssetBundles(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, out bundleResult, null, m_Settings.useBuildCache);
             return errorCode;
         }
 

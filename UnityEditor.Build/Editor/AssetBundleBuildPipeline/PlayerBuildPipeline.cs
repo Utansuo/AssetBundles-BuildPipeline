@@ -53,21 +53,6 @@ namespace UnityEditor.Build.Player
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
-            var exitCode = BuildPlayerScripts_Internal(settings, useCache, out result);
-            
-            buildTimer.Stop();
-            if (exitCode == BuildPipelineCodes.Success)
-                BuildLogger.Log("Build Player Scripts successful in: {0:c}", buildTimer.Elapsed);
-            else if (exitCode == BuildPipelineCodes.Canceled)
-                BuildLogger.LogWarning("Build Player Scripts canceled in: {0:c}", buildTimer.Elapsed);
-            else
-                BuildLogger.LogError("Build Player Scripts failed in: {0:c}", buildTimer.Elapsed);
-
-            return exitCode;
-        }
-
-        internal static BuildPipelineCodes BuildPlayerScripts_Internal(ScriptCompilationSettings settings, bool useCache, out ScriptCompilationResult result)
-        {
             BuildPipelineCodes exitCode;
             using (var progressTracker = new BuildProgressTracker(1))
             {
@@ -79,7 +64,16 @@ namespace UnityEditor.Build.Player
                         return exitCode;
                 }
             }
-            return exitCode >= BuildPipelineCodes.Success ? BuildPipelineCodes.Success : exitCode;
+            
+            buildTimer.Stop();
+            if (exitCode >= BuildPipelineCodes.Success)
+                BuildLogger.Log("Build Player Scripts successful in: {0:c}", buildTimer.Elapsed);
+            else if (exitCode == BuildPipelineCodes.Canceled)
+                BuildLogger.LogWarning("Build Player Scripts canceled in: {0:c}", buildTimer.Elapsed);
+            else
+                BuildLogger.LogError("Build Player Scripts failed in: {0:c}", buildTimer.Elapsed);
+
+            return exitCode;
         }
     }
 }
