@@ -34,8 +34,7 @@ namespace UnityEditor.Build
             if (errorCode < BuildPipelineCodes.Success)
                 return null;
 
-            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(targetPlatform);
-            bundleSettings.typeDB = scriptResults.typeDB;
+            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(scriptResults.typeDB, targetPlatform);
 
             BuildCompression compression = BuildCompression.DefaultLZMA;
             if ((assetBundleOptions & BuildAssetBundleOptions.ChunkBasedCompression) != 0)

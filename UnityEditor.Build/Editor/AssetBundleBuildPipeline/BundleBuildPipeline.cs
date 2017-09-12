@@ -3,7 +3,7 @@ using System.Diagnostics;
 using UnityEditor.Build.AssetBundle.DataConverters;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
-using UnityEditor.SceneManagement;
+using UnityEditor.Experimental.Build.Player;
 using UnityEditor.Sprites;
 
 namespace UnityEditor.Build.AssetBundle
@@ -21,27 +21,30 @@ namespace UnityEditor.Build.AssetBundle
 
         public static Func<BundleBuildResult, object, BuildPipelineCodes> PostBuildWriting;
 
-        public static BuildSettings GenerateBundleBuildSettings()
+        public static BuildSettings GenerateBundleBuildSettings(TypeDB typeDB)
         {
             var settings = new BuildSettings();
             settings.target = EditorUserBuildSettings.activeBuildTarget;
             settings.group = BuildPipeline.GetBuildTargetGroup(settings.target);
+            settings.typeDB = typeDB;
             return settings;
         }
 
-        public static BuildSettings GenerateBundleBuildSettings(BuildTarget target)
+        public static BuildSettings GenerateBundleBuildSettings(TypeDB typeDB, BuildTarget target)
         {
             var settings = new BuildSettings();
             settings.target = target;
             settings.group = BuildPipeline.GetBuildTargetGroup(settings.target);
+            settings.typeDB = typeDB;
             return settings;
         }
 
-        public static BuildSettings GenerateBundleBuildSettings(BuildTarget target, BuildTargetGroup group)
+        public static BuildSettings GenerateBundleBuildSettings(TypeDB typeDB, BuildTarget target, BuildTargetGroup group)
         {
             var settings = new BuildSettings();
             settings.target = target;
             settings.group = group;
+            settings.typeDB = typeDB;
             // TODO: Validate target & group
             return settings;
         }

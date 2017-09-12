@@ -32,7 +32,7 @@ namespace UnityEditor.Build.Tests
             return (ObjectIdentifier)value;
         }
 
-        internal static BuildCommandSet.AssetLoadInfo CreatePrefabWithMeshReference(GUID prefabGuid, GUID meshGuid)
+        internal static BuildCommandSet.AssetLoadInfo CreatePrefabWithReferences(GUID prefabGuid, params ObjectIdentifier[] references)
         {
             var asset = new BuildCommandSet.AssetLoadInfo();
             asset.address = prefabGuid.ToString();
@@ -44,11 +44,10 @@ namespace UnityEditor.Build.Tests
                 ConstructObjectIdentifier(prefabGuid, 4326504406238768, FileType.SerializedAssetType, ""),      // Transform
                 ConstructObjectIdentifier(prefabGuid, 114305515917122674, FileType.SerializedAssetType, "")     // Monobehavior W/ Reference
             };
-            asset.referencedObjects = new[]
-            {
-                ConstructObjectIdentifier(meshGuid, 4300000, FileType.MetaAssetType, ""),                                       // Mesh
-                ConstructObjectIdentifier(new GUID("206794ec26056d846b1615847cacd2cc"), 11500000, FileType.MetaAssetType, "")   // MonoScript
-            };
+
+            List<ObjectIdentifier> referencedObjects = new List<ObjectIdentifier>(references);
+            referencedObjects.Add(ConstructObjectIdentifier(new GUID("206794ec26056d846b1615847cacd2cc"), 11500000, FileType.MetaAssetType, ""));   // MonoScript
+            asset.referencedObjects = referencedObjects.ToArray();
             return asset;
         }
 
@@ -77,17 +76,18 @@ namespace UnityEditor.Build.Tests
 
         // Generates example data layout of 2 Prefabs both referencing the Mesh of an FBX
         // Each Prefab and Mesh is located in a separate bundle
-        public static BuildDependencyInformation CreateAssetsWithReferences(bool includeFbxInBundle)
+        public static BuildDependencyInformation CreateAssetsWithFBXMeshReference(bool includeFbxInBundle)
         {
             var prefab1 = new GUID("00000000000000000000000000000001");
             var prefab2 = new GUID("00000000000000000000000000000002");
             var fbx = new GUID("00000000000000000000000000000010");
+            var fbxInfo = CreateFBXWithMesh(fbx);
 
             var buildInfo = new BuildDependencyInformation();
-            buildInfo.assetLoadInfo.Add(prefab1, CreatePrefabWithMeshReference(prefab1, fbx));
-            buildInfo.assetLoadInfo.Add(prefab2, CreatePrefabWithMeshReference(prefab2, fbx));
+            buildInfo.assetLoadInfo.Add(prefab1, CreatePrefabWithReferences(prefab1, fbxInfo.includedObjects[5]));
+            buildInfo.assetLoadInfo.Add(prefab2, CreatePrefabWithReferences(prefab2, fbxInfo.includedObjects[5]));
             if (includeFbxInBundle)
-                buildInfo.assetLoadInfo.Add(fbx, CreateFBXWithMesh(fbx));
+                buildInfo.assetLoadInfo.Add(fbx, fbxInfo);
 
             List<string> assetDependencies;
             buildInfo.assetToBundles.GetOrAdd(prefab1, out assetDependencies);
@@ -118,6 +118,45 @@ namespace UnityEditor.Build.Tests
                 buildInfo.bundleToAssets.GetOrAdd(fbx.ToString(), out assetsInBundle);
                 assetsInBundle.Add(fbx);
             }
+
+            return buildInfo;
+        }
+        
+        // Generates example data layout of 3 Prefabs referencing 2 materials with 1 shader
+        // Each Prefab and Mesh is located in a separate bundle
+        public static BuildDependencyInformation CreateAssetsWithMaterialReference()
+        {
+            var prefab1 = new GUID("00000000000000000000000000000001");
+            var prefab2 = new GUID("00000000000000000000000000000002");
+            var prefab3 = new GUID("00000000000000000000000000000003");
+            var material1 = ConstructObjectIdentifier(new GUID("00000000000000000000000000000010"), 2100000, FileType.MetaAssetType, ""); // Material
+            var material2 = ConstructObjectIdentifier(new GUID("00000000000000000000000000000020"), 2100000, FileType.MetaAssetType, ""); // Material
+            var shader = ConstructObjectIdentifier(new GUID("00000000000000000000000000000100"), 6, FileType.NonAssetType, "resources/unity_builtin_extra"); // Shader
+
+            var buildInfo = new BuildDependencyInformation();
+            buildInfo.assetLoadInfo.Add(prefab1, CreatePrefabWithReferences(prefab1, material1, shader));
+            buildInfo.assetLoadInfo.Add(prefab2, CreatePrefabWithReferences(prefab2, material2, shader));
+            buildInfo.assetLoadInfo.Add(prefab3, CreatePrefabWithReferences(prefab3, material1, shader));
+            
+            List<string> assetDependencies;
+            buildInfo.assetToBundles.GetOrAdd(prefab1, out assetDependencies);
+            assetDependencies.Add(prefab1.ToString());
+
+            buildInfo.assetToBundles.GetOrAdd(prefab2, out assetDependencies);
+            assetDependencies.Add(prefab2.ToString());
+
+            buildInfo.assetToBundles.GetOrAdd(prefab3, out assetDependencies);
+            assetDependencies.Add(prefab3.ToString());
+
+            List<GUID> assetsInBundle;
+            buildInfo.bundleToAssets.GetOrAdd(prefab1.ToString(), out assetsInBundle);
+            assetsInBundle.Add(prefab1);
+
+            buildInfo.bundleToAssets.GetOrAdd(prefab2.ToString(), out assetsInBundle);
+            assetsInBundle.Add(prefab2);
+
+            buildInfo.bundleToAssets.GetOrAdd(prefab3.ToString(), out assetsInBundle);
+            assetsInBundle.Add(prefab3);
 
             return buildInfo;
         }

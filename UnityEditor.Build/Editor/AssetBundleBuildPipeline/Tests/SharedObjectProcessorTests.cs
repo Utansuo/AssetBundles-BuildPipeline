@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
+using UnityEditor.Build.AssetBundle;
 using UnityEditor.Build.AssetBundle.DataConverters;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
@@ -23,8 +24,9 @@ namespace UnityEditor.Build.Tests
         {
             // Given an input of 2 Prefabs pointing to the same Mesh, and only prefabs are assigned to bundles
             // NonAggressive mode should generate 1 virtual asset containing the mesh and monoscript
-            var dependency = TestDataGenerators.CreateAssetsWithReferences(false);
-            var exitCode = processor.Convert(dependency, false, out dependency);
+            var dependency = TestDataGenerators.CreateAssetsWithFBXMeshReference(false);
+            var settings = BundleBuildPipeline.GenerateBundleBuildSettings(null);
+            var exitCode = processor.Convert(dependency, settings, false, out dependency);
 
             var prefab1 = new GUID("00000000000000000000000000000001");
             var prefab2 = new GUID("00000000000000000000000000000002");
@@ -79,8 +81,9 @@ namespace UnityEditor.Build.Tests
             // Aggressive mode should generate 2 virtual assets
             // 1 - Mesh, needed for all 3 bundles
             // 2 - MonoScript, needed for prefab bundles
-            var dependency = TestDataGenerators.CreateAssetsWithReferences(true);
-            var exitCode = processor.Convert(dependency, true, out dependency);
+            var dependency = TestDataGenerators.CreateAssetsWithFBXMeshReference(true);
+            var settings = BundleBuildPipeline.GenerateBundleBuildSettings(null);
+            var exitCode = processor.Convert(dependency, settings, true, out dependency);
 
             var prefab1 = new GUID("00000000000000000000000000000001");
             var prefab2 = new GUID("00000000000000000000000000000002");
@@ -152,6 +155,41 @@ namespace UnityEditor.Build.Tests
             Assert.IsTrue(dependency.bundleToAssets.TryGetValue(virtualAsset2.ToString(), out assetsInBundle));
             Assert.AreEqual(1, assetsInBundle.Count);
             Assert.AreEqual(virtualAsset2, assetsInBundle[0]);
+        }
+
+        //[Test]
+        // Can't be tested with fake assets, need to figure out a better method
+        public void VirtualAssetsHaveCalculatedDependencies()
+        {
+            var dependency = TestDataGenerators.CreateAssetsWithMaterialReference();
+            var settings = BundleBuildPipeline.GenerateBundleBuildSettings(null);
+            var exitCode = processor.Convert(dependency, settings, true, out dependency);
+
+            var prefab1 = new GUID("00000000000000000000000000000001");
+            var prefab2 = new GUID("00000000000000000000000000000002");
+            var prefab3 = new GUID("00000000000000000000000000000003");
+            var material1 = new GUID("00000000000000000000000000000010");
+            var material2 = new GUID("00000000000000000000000000000020");
+            var shader = new GUID("00000000000000000000000000000100");
+
+            var virtualAsset1 = new GUID("10000000e2000000640000007a000000");
+            var virtualObject1 = dependency.assetLoadInfo[prefab1].referencedObjects[0];    // material1
+
+            var virtualAsset2 = new GUID("e9000000af00000074000000d8000000");
+            var virtualObject2 = dependency.assetLoadInfo[prefab1].referencedObjects[1];    // shader
+
+            NewEditModeTest.PrintJsonObject(dependency);
+
+            // Ensure we updated the dependency lists for the virtual assets
+            List<string> assetDependencies;
+            Assert.IsTrue(dependency.assetToBundles.TryGetValue(virtualAsset1, out assetDependencies));
+            Assert.AreEqual(2, assetDependencies.Count);
+            Assert.AreEqual(virtualAsset1.ToString(), assetDependencies[0]);
+            Assert.AreEqual(virtualAsset2.ToString(), assetDependencies[1]);
+            
+            Assert.IsTrue(dependency.assetToBundles.TryGetValue(virtualAsset2, out assetDependencies));
+            Assert.AreEqual(1, assetDependencies.Count);
+            Assert.AreEqual(virtualAsset2.ToString(), assetDependencies[0]);
         }
     }
 }

@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class SharedObjectProcessor : ADataConverter<BuildDependencyInformation, bool, BuildDependencyInformation>
+    public class SharedObjectProcessor : ADataConverter<BuildDependencyInformation, BuildSettings, bool, BuildDependencyInformation>
     {
         public override uint Version { get { return 1; } }
 
@@ -21,7 +21,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, input);
         }
 
-        public override BuildPipelineCodes Convert(BuildDependencyInformation input, bool aggressive, out BuildDependencyInformation output)
+        public override BuildPipelineCodes Convert(BuildDependencyInformation input, BuildSettings settings, bool aggressive, out BuildDependencyInformation output)
         {
             StartProgressBar("Generated shared object bundles", 3);
 
@@ -136,7 +136,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 // Add virtual asset to lookup
                 output.virtualAssets.Add(assetInfo.asset);
-                
+
                 foreach (var objectID in assetInfo.includedObjects)
                 {
                     // Add objects in virtual asset to lookup
@@ -146,13 +146,51 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     {
                         if (!output.assetToBundles.TryGetValue(asset, out assetBundles))
                             continue;
-                        
+
                         if (assetBundles.Contains(assetInfo.address))
                             continue;
 
                         // Add new bundle as dependency to assets referencing virtual asset objects
                         assetBundles.Add(assetInfo.address);
                     }
+                }
+            }
+
+            // Generate Shared Bundle Build Dependencies
+            foreach (var virtualAsset in output.virtualAssets)
+            {
+                var assetInfo = output.assetLoadInfo[virtualAsset];
+                var dependencies = output.assetToBundles[virtualAsset];
+
+                var references = BundleBuildInterface.GetPlayerDependenciesForObjects(assetInfo.includedObjects, settings.target, settings.typeDB);
+                foreach (var reference in references)
+                {
+                    GUID dependency;
+                    List<string> bundles;
+
+                    string depStr = "";
+
+                    // If the reference is to an object in a virtual asset, no major checks, just add it as a dependency
+                    if (output.objectToVirtualAsset.TryGetValue(reference, out dependency))
+                    {
+                        if (dependency == virtualAsset)
+                            continue;
+
+                        depStr = dependency.ToString();
+                    }
+                    // Otherwise if this reference is part of an asset assigned to a bundle, then set the bundle as a dependency to the virtual asset
+                    else if (output.assetToBundles.TryGetValue(reference.guid, out bundles))
+                    {
+                        if (bundles.IsNullOrEmpty())
+                            continue;
+
+                        depStr = bundles[0];
+                    }
+
+                    if (dependencies.Contains(depStr))
+                        continue;
+
+                    dependencies.Add(depStr);
                 }
             }
 

@@ -173,7 +173,7 @@ namespace UnityEditor.Build
             if (errorCode < BuildPipelineCodes.Success)
                 return errorCode;
 
-            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(m_Settings.buildTarget, m_Settings.buildGroup);
+            var bundleSettings = BundleBuildPipeline.GenerateBundleBuildSettings(scriptResults.typeDB, m_Settings.buildTarget, m_Settings.buildGroup);
 
             BuildCompression compression = BuildCompression.DefaultLZ4;
             if (m_Settings.compressionType == CompressionType.None)
