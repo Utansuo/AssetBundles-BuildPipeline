@@ -164,19 +164,12 @@ namespace UnityEditor.Build.Tests
             var dependency = TestDataGenerators.CreateAssetsWithMaterialReference();
             var settings = BundleBuildPipeline.GenerateBundleBuildSettings(null);
             var exitCode = processor.Convert(dependency, settings, true, out dependency);
-
-            var prefab1 = new GUID("00000000000000000000000000000001");
-            var prefab2 = new GUID("00000000000000000000000000000002");
-            var prefab3 = new GUID("00000000000000000000000000000003");
-            var material1 = new GUID("00000000000000000000000000000010");
-            var material2 = new GUID("00000000000000000000000000000020");
-            var shader = new GUID("00000000000000000000000000000100");
-
+            
             var virtualAsset1 = new GUID("10000000e2000000640000007a000000");
-            var virtualObject1 = dependency.assetLoadInfo[prefab1].referencedObjects[0];    // material1
-
             var virtualAsset2 = new GUID("e9000000af00000074000000d8000000");
-            var virtualObject2 = dependency.assetLoadInfo[prefab1].referencedObjects[1];    // shader
+
+            // Ensure processor returns Success
+            Assert.AreEqual(BuildPipelineCodes.Success, exitCode);
 
             // Ensure we updated the dependency lists for the virtual assets
             List<string> assetDependencies;
