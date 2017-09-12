@@ -178,7 +178,7 @@ namespace UnityEditor.Build.Tests
             var virtualAsset2 = new GUID("e9000000af00000074000000d8000000");
             var virtualObject2 = dependency.assetLoadInfo[prefab1].referencedObjects[1];    // shader
 
-            NewEditModeTest.PrintJsonObject(dependency);
+        //    NewEditModeTest.PrintJsonObject(dependency);
 
             // Ensure we updated the dependency lists for the virtual assets
             List<string> assetDependencies;
