@@ -4,7 +4,7 @@ using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
 
-using AssetInfoMap = System.Collections.Generic.Dictionary<UnityEditor.GUID, UnityEditor.Experimental.Build.AssetBundle.BuildCommandSet.AssetLoadInfo>;
+using AssetInfoMap = System.Collections.Generic.Dictionary<UnityEditor.GUID, UnityEditor.Experimental.Build.AssetBundle.AssetLoadInfo>;
 using SpriteRefMap = System.Collections.Generic.Dictionary<UnityEditor.Experimental.Build.AssetBundle.ObjectIdentifier, int>;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters

@@ -114,7 +114,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             foreach (var hashPair in hashToObjects)
             {
                 // Generate Dependency Information for virtual asset
-                var assetInfo = new BuildCommandSet.AssetLoadInfo();
+                var assetInfo = new AssetLoadInfo();
                 assetInfo.asset = new GUID(hashPair.Key.ToString());
                 assetInfo.address = hashPair.Key.ToString();
                 assetInfo.includedObjects = hashPair.Value.ToArray();

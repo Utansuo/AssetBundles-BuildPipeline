@@ -32,9 +32,9 @@ namespace UnityEditor.Build.Tests
             return (ObjectIdentifier)value;
         }
 
-        internal static BuildCommandSet.AssetLoadInfo CreatePrefabWithReferences(GUID prefabGuid, params ObjectIdentifier[] references)
+        internal static AssetLoadInfo CreatePrefabWithReferences(GUID prefabGuid, params ObjectIdentifier[] references)
         {
-            var asset = new BuildCommandSet.AssetLoadInfo();
+            var asset = new AssetLoadInfo();
             asset.address = prefabGuid.ToString();
             asset.asset = prefabGuid;
             asset.processedScene = "";
@@ -51,9 +51,9 @@ namespace UnityEditor.Build.Tests
             return asset;
         }
 
-        internal static BuildCommandSet.AssetLoadInfo CreateFBXWithMesh(GUID fbxGuid)
+        internal static AssetLoadInfo CreateFBXWithMesh(GUID fbxGuid)
         {
-            var asset = new BuildCommandSet.AssetLoadInfo();
+            var asset = new AssetLoadInfo();
             asset.address = fbxGuid.ToString();
             asset.asset = fbxGuid;
             asset.processedScene = "";
@@ -121,7 +121,7 @@ namespace UnityEditor.Build.Tests
 
             return buildInfo;
         }
-        
+
         // Generates example data layout of 3 Prefabs referencing 2 materials with 1 shader
         // Each Prefab and Mesh is located in a separate bundle
         public static BuildDependencyInformation CreateAssetsWithMaterialReference()
@@ -137,7 +137,7 @@ namespace UnityEditor.Build.Tests
             buildInfo.assetLoadInfo.Add(prefab1, CreatePrefabWithReferences(prefab1, material1, shader));
             buildInfo.assetLoadInfo.Add(prefab2, CreatePrefabWithReferences(prefab2, material2, shader));
             buildInfo.assetLoadInfo.Add(prefab3, CreatePrefabWithReferences(prefab3, material1, shader));
-            
+
             List<string> assetDependencies;
             buildInfo.assetToBundles.GetOrAdd(prefab1, out assetDependencies);
             assetDependencies.Add(prefab1.ToString());

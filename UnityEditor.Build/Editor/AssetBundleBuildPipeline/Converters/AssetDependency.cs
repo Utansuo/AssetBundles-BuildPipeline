@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class AssetDependency : ADataConverter<GUID, BuildSettings, BuildCommandSet.AssetLoadInfo>
+    public class AssetDependency : ADataConverter<GUID, BuildSettings, AssetLoadInfo>
     {
         public override uint Version { get { return 1; } }
 
@@ -34,13 +34,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, assetHash, dependencyHashes, settings);
         }
 
-        public override BuildPipelineCodes Convert(GUID asset, BuildSettings settings, out BuildCommandSet.AssetLoadInfo output)
+        public override BuildPipelineCodes Convert(GUID asset, BuildSettings settings, out AssetLoadInfo output)
         {
             StartProgressBar("Calculating Asset Dependencies", 2);
 
             if (!ValidAsset(asset))
             {
-                output = new BuildCommandSet.AssetLoadInfo();
+                output = new AssetLoadInfo();
                 EndProgressBar();
                 return BuildPipelineCodes.Error;
             }
@@ -53,7 +53,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return BuildPipelineCodes.SuccessCached;
             }
 
-            output = new BuildCommandSet.AssetLoadInfo();
+            output = new AssetLoadInfo();
             output.asset = asset;
 
             if (!UpdateProgressBar("Calculating included objects"))

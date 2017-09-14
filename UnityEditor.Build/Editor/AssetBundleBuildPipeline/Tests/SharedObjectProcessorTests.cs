@@ -39,7 +39,7 @@ namespace UnityEditor.Build.Tests
             Assert.AreEqual(BuildPipelineCodes.Success, exitCode);
 
             // Ensure we created AssetLoadInfos for virtualAsset 1 & 2
-            BuildCommandSet.AssetLoadInfo vaInfo;
+            AssetLoadInfo vaInfo;
             Assert.IsTrue(dependency.assetLoadInfo.TryGetValue(virtualAsset, out vaInfo));
             Assert.AreEqual(2, vaInfo.includedObjects.Length);
             Assert.AreEqual(virtualObject1, vaInfo.includedObjects[0]);
@@ -99,14 +99,14 @@ namespace UnityEditor.Build.Tests
             Assert.AreEqual(BuildPipelineCodes.Success, exitCode);
 
             // Ensure we created AssetLoadInfos for virtualAsset 1 & 2
-            BuildCommandSet.AssetLoadInfo vaInfo1;
+            AssetLoadInfo vaInfo1;
             Assert.IsTrue(dependency.assetLoadInfo.TryGetValue(virtualAsset1, out vaInfo1));
             Assert.AreEqual(1, vaInfo1.includedObjects.Length);
             Assert.AreEqual(virtualObject1, vaInfo1.includedObjects[0]);
             Assert.AreEqual(virtualAsset1, vaInfo1.asset);
             Assert.AreEqual(virtualAsset1.ToString(), vaInfo1.address);
 
-            BuildCommandSet.AssetLoadInfo vaInfo2;
+            AssetLoadInfo vaInfo2;
             Assert.IsTrue(dependency.assetLoadInfo.TryGetValue(virtualAsset2, out vaInfo2));
             Assert.AreEqual(1, vaInfo2.includedObjects.Length);
             Assert.AreEqual(virtualObject2, vaInfo2.includedObjects[0]);
@@ -164,7 +164,7 @@ namespace UnityEditor.Build.Tests
             var dependency = TestDataGenerators.CreateAssetsWithMaterialReference();
             var settings = BundleBuildPipeline.GenerateBundleBuildSettings(null);
             var exitCode = processor.Convert(dependency, settings, true, out dependency);
-            
+
             var virtualAsset1 = new GUID("10000000e2000000640000007a000000");
             var virtualAsset2 = new GUID("e9000000af00000074000000d8000000");
 
@@ -177,7 +177,7 @@ namespace UnityEditor.Build.Tests
             Assert.AreEqual(2, assetDependencies.Count);
             Assert.AreEqual(virtualAsset1.ToString(), assetDependencies[0]);
             Assert.AreEqual(virtualAsset2.ToString(), assetDependencies[1]);
-            
+
             Assert.IsTrue(dependency.assetToBundles.TryGetValue(virtualAsset2, out assetDependencies));
             Assert.AreEqual(1, assetDependencies.Count);
             Assert.AreEqual(virtualAsset2.ToString(), assetDependencies[0]);
