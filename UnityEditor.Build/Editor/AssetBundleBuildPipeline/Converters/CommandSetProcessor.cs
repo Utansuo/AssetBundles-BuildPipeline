@@ -37,11 +37,11 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return BuildPipelineCodes.SuccessCached;
             }
 
-            var commands = new List<BuildCommandSet.Command>();
+            var commands = new List<WriteCommand>();
 
             foreach (var bundle in buildInfo.bundleToAssets)
             {
-                var command = new BuildCommandSet.Command();
+                var command = new WriteCommand();
                 var explicitAssets = new List<AssetLoadInfo>();
                 var assetBundleObjects = new List<SerializationInfo>();
                 var dependencies = new HashSet<string>();

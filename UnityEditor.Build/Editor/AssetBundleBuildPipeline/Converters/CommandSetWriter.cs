@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class CommandSetWriter : ADataConverter<BuildCommandSet, BuildSettings, List<BuildOutput.Result>>
+    public class CommandSetWriter : ADataConverter<BuildCommandSet, BuildSettings, List<WriteResult>>
     {
         private Dictionary<string, List<string>> m_NameToDependencies = new Dictionary<string, List<string>>();
         private Dictionary<GUID, string> m_AssetToHash = new Dictionary<GUID, string>();
@@ -15,7 +15,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         public CommandSetWriter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        private Hash128 CalculateInputHash(BuildCommandSet.Command command, BuildSettings settings)
+        private Hash128 CalculateInputHash(WriteCommand command, BuildSettings settings)
         {
             if (!UseCache)
                 return new Hash128();
@@ -67,12 +67,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return path;
         }
 
-        public override BuildPipelineCodes Convert(BuildCommandSet commandSet, BuildSettings settings, out List<BuildOutput.Result> output)
+        public override BuildPipelineCodes Convert(BuildCommandSet commandSet, BuildSettings settings, out List<WriteResult> output)
         {
             StartProgressBar("Writing Resource Files", commandSet.commands.Length);
             CacheDataForCommandSet(commandSet);
 
-            output = new List<BuildOutput.Result>();
+            output = new List<WriteResult>();
             foreach (var command in commandSet.commands)
             {
                 if (!UpdateProgressBar(string.Format("Bundle: {0}", command.assetBundleName)))
