@@ -48,12 +48,16 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     resourceFiles.AddRange(sceneFiles);
                 }
 
+                var filePath = string.Format("{0}/{1}", outputFolder, bundle.assetBundleName);
+
                 uint crc;
                 Hash128 hash = CalculateInputHash(resourceFiles, compression);
                 if (UseCache && TryLoadFromCache(hash, outputFolder, out crc))
+                {
+                    output[filePath] = crc;
                     continue;
-
-                var filePath = string.Format("{0}/{1}", outputFolder, bundle.assetBundleName);
+                }
+                
                 crc = BundleBuildInterface.ArchiveAndCompress(resourceFiles.ToArray(), filePath, compression);
                 output[filePath] = crc;
 
