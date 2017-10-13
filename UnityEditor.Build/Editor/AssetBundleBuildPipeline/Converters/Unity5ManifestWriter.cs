@@ -47,7 +47,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         public override BuildPipelineCodes Convert(BuildCommandSet commands, BuildOutput output, uint[] crcs, string outputFolder, out string[] manifestFiles)
         {
-            StartProgressBar("Writing Asset Bundle Manifests", commands.commands.Length);
+            StartProgressBar("Writing Asset Bundle Manifests", commands.commands.Count);
 
             // If enabled, try loading from cache
             Hash128 hash = CalculateInputHash(commands, output, crcs, outputFolder);
@@ -104,7 +104,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     //    }
                     //}
 
-                    if (commands.commands.IsNullOrEmpty() || commands.commands.Length <= i)
+                    if (commands.commands.IsNullOrEmpty() || commands.commands.Count <= i)
                     {
                         stream.WriteLine("Assets: []");
                         stream.WriteLine("Dependencies: []");
@@ -114,7 +114,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     if (!commands.commands[i].explicitAssets.IsNullOrEmpty())
                     {
                         stream.WriteLine("Assets:");
-                        for (var j = 0; j < commands.commands[i].explicitAssets.Length; j++)
+                        for (var j = 0; j < commands.commands[i].explicitAssets.Count; j++)
                             // TODO: Create GUIDToAssetPath that takes GUID struct
                             stream.WriteLine("- {0}", AssetDatabase.GUIDToAssetPath(commands.commands[i].explicitAssets[j].asset.ToString()));
                     }
@@ -124,7 +124,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     if (!commands.commands[i].assetBundleDependencies.IsNullOrEmpty())
                     {
                         stream.WriteLine("Dependencies:");
-                        for (var j = 0; j < commands.commands[i].assetBundleDependencies.Length; j++)
+                        for (var j = 0; j < commands.commands[i].assetBundleDependencies.Count; j++)
                             stream.WriteLine("- {0}", commands.commands[i].assetBundleDependencies[j]);
                     }
                     else

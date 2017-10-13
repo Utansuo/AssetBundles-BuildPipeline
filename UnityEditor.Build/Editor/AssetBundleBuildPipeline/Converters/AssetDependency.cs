@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
@@ -61,14 +62,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
-            output.includedObjects = BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);
+            output.includedObjects = new List<ObjectIdentifier>(BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target));
 
             if (!UpdateProgressBar("Calculating referenced objects"))
             {
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
-            output.referencedObjects = BundleBuildInterface.GetPlayerDependenciesForObjects(output.includedObjects, settings.target, settings.typeDB);
+            output.referencedObjects = new List<ObjectIdentifier>(BundleBuildInterface.GetPlayerDependenciesForObjects(output.includedObjects.ToArray(), settings.target, settings.typeDB));
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetDependency results for asset '{0}'.", asset);

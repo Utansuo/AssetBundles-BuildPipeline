@@ -101,14 +101,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 assetBundleObjects.Sort(Compare);
 
                 command.assetBundleName = bundle.Key;
-                command.explicitAssets = explicitAssets.ToArray();
-                command.assetBundleDependencies = dependencies.OrderBy(x => x).ToArray();
-                command.assetBundleObjects = assetBundleObjects.ToArray();
+                command.explicitAssets = explicitAssets;
+                command.assetBundleDependencies = dependencies.OrderBy(x => x).ToList();
+                command.assetBundleObjects = assetBundleObjects;
                 commands.Add(command);
             }
 
             output = new BuildCommandSet();
-            output.commands = commands.ToArray();
+            output.commands = commands;
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache CommandSetProcessor results.");

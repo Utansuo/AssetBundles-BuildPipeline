@@ -38,7 +38,7 @@ namespace UnityEditor.Build.Tests
             asset.address = prefabGuid.ToString();
             asset.asset = prefabGuid;
             asset.processedScene = "";
-            asset.includedObjects = new[]
+            asset.includedObjects = new List<ObjectIdentifier>
             {
                 ConstructObjectIdentifier(prefabGuid, 1326890503170502, FileType.SerializedAssetType, ""),      // GameObject
                 ConstructObjectIdentifier(prefabGuid, 4326504406238768, FileType.SerializedAssetType, ""),      // Transform
@@ -47,7 +47,7 @@ namespace UnityEditor.Build.Tests
 
             List<ObjectIdentifier> referencedObjects = new List<ObjectIdentifier>(references);
             referencedObjects.Add(ConstructObjectIdentifier(new GUID("206794ec26056d846b1615847cacd2cc"), 11500000, FileType.MetaAssetType, ""));   // MonoScript
-            asset.referencedObjects = referencedObjects.ToArray();
+            asset.referencedObjects = referencedObjects;
             return asset;
         }
 
@@ -57,7 +57,7 @@ namespace UnityEditor.Build.Tests
             asset.address = fbxGuid.ToString();
             asset.asset = fbxGuid;
             asset.processedScene = "";
-            asset.includedObjects = new[]
+            asset.includedObjects = new List<ObjectIdentifier>
             {
                 ConstructObjectIdentifier(fbxGuid, 100000, FileType.MetaAssetType, ""),     // GameObject
                 ConstructObjectIdentifier(fbxGuid, 400000, FileType.MetaAssetType, ""),     // Transform
@@ -66,7 +66,7 @@ namespace UnityEditor.Build.Tests
                 ConstructObjectIdentifier(fbxGuid, 3300000, FileType.MetaAssetType, ""),    // MeshFilter
                 ConstructObjectIdentifier(fbxGuid, 4300000, FileType.MetaAssetType, "")     // Mesh
             };
-            asset.referencedObjects = new[]
+            asset.referencedObjects = new List<ObjectIdentifier>
             {
                 ConstructObjectIdentifier(new GUID("0000000000000000f000000000000000"), 6, FileType.NonAssetType, "resources/unity_builtin_extra"), // Shader
                 ConstructObjectIdentifier(new GUID("0000000000000000f000000000000000"), 46, FileType.NonAssetType, "resources/unity_builtin_extra") // Shader

@@ -41,7 +41,7 @@ namespace UnityEditor.Build.Tests
             // Ensure we created AssetLoadInfos for virtualAsset 1 & 2
             AssetLoadInfo vaInfo;
             Assert.IsTrue(dependency.assetLoadInfo.TryGetValue(virtualAsset, out vaInfo));
-            Assert.AreEqual(2, vaInfo.includedObjects.Length);
+            Assert.AreEqual(2, vaInfo.includedObjects.Count);
             Assert.AreEqual(virtualObject1, vaInfo.includedObjects[0]);
             Assert.AreEqual(virtualObject2, vaInfo.includedObjects[1]);
             Assert.AreEqual(virtualAsset, vaInfo.asset);
@@ -101,14 +101,14 @@ namespace UnityEditor.Build.Tests
             // Ensure we created AssetLoadInfos for virtualAsset 1 & 2
             AssetLoadInfo vaInfo1;
             Assert.IsTrue(dependency.assetLoadInfo.TryGetValue(virtualAsset1, out vaInfo1));
-            Assert.AreEqual(1, vaInfo1.includedObjects.Length);
+            Assert.AreEqual(1, vaInfo1.includedObjects.Count);
             Assert.AreEqual(virtualObject1, vaInfo1.includedObjects[0]);
             Assert.AreEqual(virtualAsset1, vaInfo1.asset);
             Assert.AreEqual(virtualAsset1.ToString(), vaInfo1.address);
 
             AssetLoadInfo vaInfo2;
             Assert.IsTrue(dependency.assetLoadInfo.TryGetValue(virtualAsset2, out vaInfo2));
-            Assert.AreEqual(1, vaInfo2.includedObjects.Length);
+            Assert.AreEqual(1, vaInfo2.includedObjects.Count);
             Assert.AreEqual(virtualObject2, vaInfo2.includedObjects[0]);
             Assert.AreEqual(virtualAsset2, vaInfo2.asset);
             Assert.AreEqual(virtualAsset2.ToString(), vaInfo2.address);

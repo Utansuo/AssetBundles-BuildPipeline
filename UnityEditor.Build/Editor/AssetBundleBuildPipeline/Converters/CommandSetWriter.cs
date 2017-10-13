@@ -69,7 +69,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         public override BuildPipelineCodes Convert(BuildCommandSet commandSet, BuildSettings settings, out List<WriteResult> output)
         {
-            StartProgressBar("Writing Resource Files", commandSet.commands.Length);
+            StartProgressBar("Writing Resource Files", commandSet.commands.Count);
             CacheDataForCommandSet(commandSet);
 
             output = new List<WriteResult>();

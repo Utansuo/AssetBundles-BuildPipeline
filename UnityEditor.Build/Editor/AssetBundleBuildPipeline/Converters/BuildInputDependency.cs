@@ -64,8 +64,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         assetInfo.asset = asset.asset;
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
                         assetInfo.processedScene = sceneInfo.processedScene;
-                        assetInfo.includedObjects = new ObjectIdentifier[0];
-                        assetInfo.referencedObjects = sceneInfo.referencedObjects.ToArray();
+                        assetInfo.includedObjects = new List<ObjectIdentifier>();
+                        assetInfo.referencedObjects = sceneInfo.referencedObjects.ToList();
 
                         // Add generated scene information to BuildDependencyInformation
                         output.sceneResourceFiles.Add(asset.asset, sceneInfo.resourceFiles.ToArray());
