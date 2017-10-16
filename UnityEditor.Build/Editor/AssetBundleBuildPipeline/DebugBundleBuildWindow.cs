@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using UnityEditor.Build.AssetBundle;
+using UnityEditor.Build.AssetBundle.DataConverters;
 using UnityEditor.Build.Player;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
@@ -21,6 +22,7 @@ namespace UnityEditor.Build
             public CompressionType compressionType;
             public bool useBuildCache;
             public bool useExperimentalPipeline;
+            public bool usePatchInfoWriter;
             public string outputPath;
         }
 
@@ -33,6 +35,7 @@ namespace UnityEditor.Build
         SerializedProperty m_CompressionProp;
         SerializedProperty m_CacheProp;
         SerializedProperty m_ExpProp;
+        SerializedProperty m_PatchProp;
         SerializedProperty m_OutputProp;
 
         // Add menu named "My Window" to the Window menu
@@ -56,6 +59,7 @@ namespace UnityEditor.Build
             m_CompressionProp = m_SerializedObject.FindProperty("m_Settings.compressionType");
             m_CacheProp = m_SerializedObject.FindProperty("m_Settings.useBuildCache");
             m_ExpProp = m_SerializedObject.FindProperty("m_Settings.useExperimentalPipeline");
+            m_PatchProp = m_SerializedObject.FindProperty("m_Settings.usePatchInfoWriter");
             m_OutputProp = m_SerializedObject.FindProperty("m_Settings.outputPath");
         }
 
@@ -68,6 +72,7 @@ namespace UnityEditor.Build
             EditorGUILayout.PropertyField(m_CompressionProp);
             EditorGUILayout.PropertyField(m_CacheProp);
             EditorGUILayout.PropertyField(m_ExpProp);
+            EditorGUILayout.PropertyField(m_PatchProp);
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PropertyField(m_OutputProp);
@@ -83,11 +88,30 @@ namespace UnityEditor.Build
 
             GUILayout.FlexibleSpace();
 
+            if (GUILayout.Button("Open Output"))
+                OpenOutputFolder();
             if (GUILayout.Button("Build Bundles"))
                 BuildAssetBundles();
             EditorGUILayout.EndHorizontal();
 
             m_SerializedObject.ApplyModifiedProperties();
+        }
+
+        private void OpenOutputFolder()
+        {
+#if UNITY_EDITOR_WIN
+            try
+            {
+                var folder = new DirectoryInfo(m_Settings.outputPath);
+                if (folder.Exists)
+                    Process.Start(folder.FullName);
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                BuildLogger.LogWarning(ex.Message);
+            }
+#endif
+            //TODO: Mac finder
         }
 
         private void PickOutputFolder()
@@ -167,6 +191,14 @@ namespace UnityEditor.Build
                 BuildLogger.LogError("Build Asset Bundles failed in: {0:c}. Error: {1}.", buildTimer.Elapsed, exitCode);
         }
 
+        private BuildPipelineCodes OnPatchWriteCallback(BuildDependencyInformation buildInfo, BundleBuildResult results, object userData)
+        {
+            PatchInfo output;
+            var patchInfoWriter = new PatchInfoWriter(false, null);
+            var exitCode = patchInfoWriter.Convert(results.bundleDetails, buildInfo.sceneResourceFiles, m_Settings.outputPath, out output);
+            return exitCode;
+        }
+
         private BuildPipelineCodes ExperimentalBuildPipeline()
         {
             var playerSettings = PlayerBuildPipeline.GeneratePlayerBuildSettings(m_Settings.buildTarget, m_Settings.buildGroup);
@@ -183,8 +215,15 @@ namespace UnityEditor.Build
             else if (m_Settings.compressionType == CompressionType.Lzma)
                 compression = BuildCompression.DefaultLZMA;
 
+            if (m_Settings.usePatchInfoWriter)
+                BundleBuildPipeline.PostBuildWriting += OnPatchWriteCallback;
+
             BundleBuildResult bundleResult;
             errorCode = BundleBuildPipeline.BuildAssetBundles(BundleBuildInterface.GenerateBuildInput(), bundleSettings, compression, m_Settings.outputPath, out bundleResult, null, m_Settings.useBuildCache);
+
+            if (m_Settings.usePatchInfoWriter)
+                BundleBuildPipeline.PostBuildWriting -= OnPatchWriteCallback;
+
             return errorCode;
         }
 

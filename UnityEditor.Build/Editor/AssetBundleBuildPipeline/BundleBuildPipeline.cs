@@ -15,10 +15,10 @@ namespace UnityEditor.Build.AssetBundle
 
         // TODO: Replace with calls to UnityEditor.Build.BuildPipelineInterfaces once i make it more generic & public
         public static Func<BuildDependencyInformation, object, BuildPipelineCodes> PostBuildDependency;
-        // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
-        public static Func<BuildCommandSet, object, BuildPipelineCodes> PostBuildPacking;
 
-        public static Func<BundleBuildResult, object, BuildPipelineCodes> PostBuildWriting;
+        public static Func<BuildDependencyInformation, BuildCommandSet, object, BuildPipelineCodes> PostBuildPacking;
+
+        public static Func<BuildDependencyInformation, BundleBuildResult, object, BuildPipelineCodes> PostBuildWriting;
 
         public static BuildSettings GenerateBundleBuildSettings(TypeDB typeDB)
         {
@@ -60,12 +60,12 @@ namespace UnityEditor.Build.AssetBundle
                 BuildLogger.LogError("Build Asset Bundles failed in: {0:c}. Error: {1}.", buildTimer.Elapsed, BuildPipelineCodes.UnsavedChanges);
                 return BuildPipelineCodes.UnsavedChanges;
             }
-            
+
             var exitCode = BuildPipelineCodes.Success;
             result = new BundleBuildResult();
 
             AssetDatabase.SaveAssets();
-                
+
             // TODO: Until new AssetDatabaseV2 is online, we need to switch platforms
             EditorUserBuildSettings.SwitchActiveBuildTarget(settings.group, settings.target);
 
@@ -93,8 +93,7 @@ namespace UnityEditor.Build.AssetBundle
 
                     if (PostBuildPacking != null)
                     {
-                        // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
-                        exitCode = PostBuildPacking.Invoke(commandSet, callbackUserData);
+                        exitCode = PostBuildPacking.Invoke(buildInfo, commandSet, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }
@@ -105,7 +104,7 @@ namespace UnityEditor.Build.AssetBundle
 
                     if (PostBuildWriting != null)
                     {
-                        exitCode = PostBuildWriting.Invoke(result, callbackUserData);
+                        exitCode = PostBuildWriting.Invoke(buildInfo, result, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }

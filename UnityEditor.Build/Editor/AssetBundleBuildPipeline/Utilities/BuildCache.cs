@@ -45,7 +45,7 @@ namespace UnityEditor.Build.Utilities
             {
                 var formatter = new BinaryFormatter();
                 using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                    results = (T) formatter.Deserialize(stream);
+                    results = (T)formatter.Deserialize(stream);
                 return true;
             }
             catch (Exception)
@@ -141,7 +141,7 @@ namespace UnityEditor.Build.Utilities
         {
             if (SaveCachedResults(hash, results) && SaveCachedArtifacts(hash, artifactPaths, rootPath))
                 return true;
-            
+
             var path = GetPathForCachedResults(hash);
             if (Directory.Exists(path))
                 Directory.Delete(path, true);
@@ -149,7 +149,7 @@ namespace UnityEditor.Build.Utilities
             path = GetPathForCachedArtifacts(hash);
             if (Directory.Exists(path))
                 Directory.Delete(path, true);
-            
+
             return false;
         }
     }
