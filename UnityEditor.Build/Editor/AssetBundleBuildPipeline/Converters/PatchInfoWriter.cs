@@ -76,7 +76,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                     string hash = HashingMethods.CalculateMD5Hash(file.fileAlias).ToString();
                     output.fileMap.Add(file.fileName, hash);
-                    File.Copy(file.fileName, string.Format("{0}/{1}", pathInfoPath, hash));
+                    try
+                    {
+                        File.Copy(file.fileName, string.Format("{0}/{1}", pathInfoPath, hash));
+                    }
+                    catch (IOException e)
+                    {
+                        BuildLogger.LogError(e.Message);
+                    }
                 }
             }
 
