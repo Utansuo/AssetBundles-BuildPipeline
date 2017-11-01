@@ -32,13 +32,13 @@ namespace UnityEditor.Build.Tests
             return (ObjectIdentifier)value;
         }
 
-        internal static BuildCommandSet.AssetLoadInfo CreatePrefabWithReferences(GUID prefabGuid, params ObjectIdentifier[] references)
+        internal static AssetLoadInfo CreatePrefabWithReferences(GUID prefabGuid, params ObjectIdentifier[] references)
         {
-            var asset = new BuildCommandSet.AssetLoadInfo();
+            var asset = new AssetLoadInfo();
             asset.address = prefabGuid.ToString();
             asset.asset = prefabGuid;
             asset.processedScene = "";
-            asset.includedObjects = new[]
+            asset.includedObjects = new List<ObjectIdentifier>
             {
                 ConstructObjectIdentifier(prefabGuid, 1326890503170502, FileType.SerializedAssetType, ""),      // GameObject
                 ConstructObjectIdentifier(prefabGuid, 4326504406238768, FileType.SerializedAssetType, ""),      // Transform
@@ -47,17 +47,17 @@ namespace UnityEditor.Build.Tests
 
             List<ObjectIdentifier> referencedObjects = new List<ObjectIdentifier>(references);
             referencedObjects.Add(ConstructObjectIdentifier(new GUID("206794ec26056d846b1615847cacd2cc"), 11500000, FileType.MetaAssetType, ""));   // MonoScript
-            asset.referencedObjects = referencedObjects.ToArray();
+            asset.referencedObjects = referencedObjects;
             return asset;
         }
 
-        internal static BuildCommandSet.AssetLoadInfo CreateFBXWithMesh(GUID fbxGuid)
+        internal static AssetLoadInfo CreateFBXWithMesh(GUID fbxGuid)
         {
-            var asset = new BuildCommandSet.AssetLoadInfo();
+            var asset = new AssetLoadInfo();
             asset.address = fbxGuid.ToString();
             asset.asset = fbxGuid;
             asset.processedScene = "";
-            asset.includedObjects = new[]
+            asset.includedObjects = new List<ObjectIdentifier>
             {
                 ConstructObjectIdentifier(fbxGuid, 100000, FileType.MetaAssetType, ""),     // GameObject
                 ConstructObjectIdentifier(fbxGuid, 400000, FileType.MetaAssetType, ""),     // Transform
@@ -66,7 +66,7 @@ namespace UnityEditor.Build.Tests
                 ConstructObjectIdentifier(fbxGuid, 3300000, FileType.MetaAssetType, ""),    // MeshFilter
                 ConstructObjectIdentifier(fbxGuid, 4300000, FileType.MetaAssetType, "")     // Mesh
             };
-            asset.referencedObjects = new[]
+            asset.referencedObjects = new List<ObjectIdentifier>
             {
                 ConstructObjectIdentifier(new GUID("0000000000000000f000000000000000"), 6, FileType.NonAssetType, "resources/unity_builtin_extra"), // Shader
                 ConstructObjectIdentifier(new GUID("0000000000000000f000000000000000"), 46, FileType.NonAssetType, "resources/unity_builtin_extra") // Shader
@@ -121,7 +121,7 @@ namespace UnityEditor.Build.Tests
 
             return buildInfo;
         }
-        
+
         // Generates example data layout of 3 Prefabs referencing 2 materials with 1 shader
         // Each Prefab and Mesh is located in a separate bundle
         public static BuildDependencyInformation CreateAssetsWithMaterialReference()
@@ -137,7 +137,7 @@ namespace UnityEditor.Build.Tests
             buildInfo.assetLoadInfo.Add(prefab1, CreatePrefabWithReferences(prefab1, material1, shader));
             buildInfo.assetLoadInfo.Add(prefab2, CreatePrefabWithReferences(prefab2, material2, shader));
             buildInfo.assetLoadInfo.Add(prefab3, CreatePrefabWithReferences(prefab3, material1, shader));
-            
+
             List<string> assetDependencies;
             buildInfo.assetToBundles.GetOrAdd(prefab1, out assetDependencies);
             assetDependencies.Add(prefab1.ToString());

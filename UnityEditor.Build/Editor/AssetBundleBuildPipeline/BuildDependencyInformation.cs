@@ -9,8 +9,8 @@ namespace UnityEditor.Build
     public class BuildDependencyInformation
     {
         // AssetLoadInfo for all scenes and assets
-        public Dictionary<GUID, BuildCommandSet.AssetLoadInfo> assetLoadInfo = new Dictionary<GUID, BuildCommandSet.AssetLoadInfo>();
-        
+        public Dictionary<GUID, AssetLoadInfo> assetLoadInfo = new Dictionary<GUID, AssetLoadInfo>();
+
         // Scene specific dependency information
         public Dictionary<GUID, ResourceFile[]> sceneResourceFiles = new Dictionary<GUID, ResourceFile[]>();
         public Dictionary<GUID, BuildUsageTagGlobal> sceneUsageTags = new Dictionary<GUID, BuildUsageTagGlobal>();

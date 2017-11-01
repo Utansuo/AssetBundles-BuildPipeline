@@ -4,7 +4,7 @@ using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
 
-using AssetInfoMap = System.Collections.Generic.Dictionary<UnityEditor.GUID, UnityEditor.Experimental.Build.AssetBundle.BuildCommandSet.AssetLoadInfo>;
+using AssetInfoMap = System.Collections.Generic.Dictionary<UnityEditor.GUID, UnityEditor.Experimental.Build.AssetBundle.AssetLoadInfo>;
 using SpriteRefMap = System.Collections.Generic.Dictionary<UnityEditor.Experimental.Build.AssetBundle.ObjectIdentifier, int>;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
@@ -84,11 +84,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 var assetInfo = output[source.Key.guid];
                 var includedObjects = assetInfo.includedObjects;
-                includedObjects.Swap(0, includedObjects.Length - 1);
-                Array.Resize(ref includedObjects, includedObjects.Length - 1);
-
-                // Note: Because pass by value
-                output[source.Key.guid] = assetInfo;
+                includedObjects.RemoveAt(0);
             }
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))

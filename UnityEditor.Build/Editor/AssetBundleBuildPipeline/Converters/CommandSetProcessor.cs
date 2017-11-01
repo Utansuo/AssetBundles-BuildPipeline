@@ -16,7 +16,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
         public override uint Version { get { return 1; } }
 
         public CommandSetProcessor(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
-        
+
         private Hash128 CalculateInputHash(BuildDependencyInformation buildInfo)
         {
             if (!UseCache)
@@ -36,14 +36,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 EndProgressBar();
                 return BuildPipelineCodes.SuccessCached;
             }
-            
-            var commands = new List<BuildCommandSet.Command>();
+
+            var commands = new List<WriteCommand>();
 
             foreach (var bundle in buildInfo.bundleToAssets)
             {
-                var command = new BuildCommandSet.Command();
-                var explicitAssets = new List<BuildCommandSet.AssetLoadInfo>();
-                var assetBundleObjects = new List<BuildCommandSet.SerializationInfo>();
+                var command = new WriteCommand();
+                var explicitAssets = new List<AssetLoadInfo>();
+                var assetBundleObjects = new List<SerializationInfo>();
                 var dependencies = new HashSet<string>();
 
                 foreach (var asset in bundle.Value)
@@ -58,13 +58,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     }
 
                     dependencies.UnionWith(buildInfo.assetToBundles[asset]);
-                    
+
                     foreach (var includedObject in assetInfo.includedObjects)
                     {
                         if (!buildInfo.virtualAssets.Contains(asset) && buildInfo.objectToVirtualAsset.ContainsKey(includedObject))
                             continue;
 
-                        assetBundleObjects.Add(new BuildCommandSet.SerializationInfo
+                        assetBundleObjects.Add(new SerializationInfo
                         {
                             serializationObject = includedObject,
                             serializationIndex = SerializationIndexFromObjectIdentifier(includedObject)
@@ -82,7 +82,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         if (buildInfo.assetLoadInfo.ContainsKey(referencedObject.guid))
                             continue;
 
-                        assetBundleObjects.Add(new BuildCommandSet.SerializationInfo
+                        assetBundleObjects.Add(new SerializationInfo
                         {
                             serializationObject = referencedObject,
                             serializationIndex = SerializationIndexFromObjectIdentifier(referencedObject)
@@ -101,14 +101,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 assetBundleObjects.Sort(Compare);
 
                 command.assetBundleName = bundle.Key;
-                command.explicitAssets = explicitAssets.ToArray();
-                command.assetBundleDependencies = dependencies.OrderBy(x => x).ToArray();
-                command.assetBundleObjects = assetBundleObjects.ToArray();
+                command.explicitAssets = explicitAssets;
+                command.assetBundleDependencies = dependencies.OrderBy(x => x).ToList();
+                command.assetBundleObjects = assetBundleObjects;
                 commands.Add(command);
             }
 
             output = new BuildCommandSet();
-            output.commands = commands.ToArray();
+            output.commands = commands;
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache CommandSetProcessor results.");
@@ -160,7 +160,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return x.fileType.CompareTo(y.fileType);
         }
 
-        private static int Compare(BuildCommandSet.SerializationInfo x, BuildCommandSet.SerializationInfo y)
+        private static int Compare(SerializationInfo x, SerializationInfo y)
         {
             if (x.serializationIndex != y.serializationIndex)
                 return x.serializationIndex.CompareTo(y.serializationIndex);

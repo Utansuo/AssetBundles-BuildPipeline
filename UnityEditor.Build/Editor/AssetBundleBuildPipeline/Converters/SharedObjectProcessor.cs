@@ -50,7 +50,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 if (aggressive && !asset.includedObjects.IsNullOrEmpty())
                 {
-                    for (int i = 1; i < asset.includedObjects.Length; ++i)
+                    for (int i = 1; i < asset.includedObjects.Count; ++i)
                     {
                         var objectID = asset.includedObjects[i];
 
@@ -114,12 +114,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             foreach (var hashPair in hashToObjects)
             {
                 // Generate Dependency Information for virtual asset
-                var assetInfo = new BuildCommandSet.AssetLoadInfo();
+                var assetInfo = new AssetLoadInfo();
                 assetInfo.asset = new GUID(hashPair.Key.ToString());
                 assetInfo.address = hashPair.Key.ToString();
-                assetInfo.includedObjects = hashPair.Value.ToArray();
-                assetInfo.referencedObjects = new ObjectIdentifier[0];
-                Array.Sort(assetInfo.includedObjects, (x, y) => { if (x < y) return -1; if (x > y) return 1; return 0; });
+                assetInfo.includedObjects = hashPair.Value.ToList();
+                assetInfo.referencedObjects = new List<ObjectIdentifier>();
+                assetInfo.includedObjects.Sort((x, y) => { if (x < y) return -1; if (x > y) return 1; return 0; });
 
                 // Add new AssetLoadInfo for virtual asset
                 output.assetLoadInfo.Add(assetInfo.asset, assetInfo);
@@ -162,7 +162,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 var assetInfo = output.assetLoadInfo[virtualAsset];
                 var dependencies = output.assetToBundles[virtualAsset];
 
-                var references = BundleBuildInterface.GetPlayerDependenciesForObjects(assetInfo.includedObjects, settings.target, settings.typeDB);
+                var references = BundleBuildInterface.GetPlayerDependenciesForObjects(assetInfo.includedObjects.ToArray(), settings.target, settings.typeDB);
                 foreach (var reference in references)
                 {
                     GUID dependency;

@@ -1,11 +1,12 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
 using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class AssetDependency : ADataConverter<GUID, BuildSettings, BuildCommandSet.AssetLoadInfo>
+    public class AssetDependency : ADataConverter<GUID, BuildSettings, AssetLoadInfo>
     {
         public override uint Version { get { return 1; } }
 
@@ -34,13 +35,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, assetHash, dependencyHashes, settings);
         }
 
-        public override BuildPipelineCodes Convert(GUID asset, BuildSettings settings, out BuildCommandSet.AssetLoadInfo output)
+        public override BuildPipelineCodes Convert(GUID asset, BuildSettings settings, out AssetLoadInfo output)
         {
             StartProgressBar("Calculating Asset Dependencies", 2);
 
             if (!ValidAsset(asset))
             {
-                output = new BuildCommandSet.AssetLoadInfo();
+                output = new AssetLoadInfo();
                 EndProgressBar();
                 return BuildPipelineCodes.Error;
             }
@@ -53,7 +54,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return BuildPipelineCodes.SuccessCached;
             }
 
-            output = new BuildCommandSet.AssetLoadInfo();
+            output = new AssetLoadInfo();
             output.asset = asset;
 
             if (!UpdateProgressBar("Calculating included objects"))
@@ -61,14 +62,14 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
-            output.includedObjects = BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target);
+            output.includedObjects = new List<ObjectIdentifier>(BundleBuildInterface.GetPlayerObjectIdentifiersInAsset(asset, settings.target));
 
             if (!UpdateProgressBar("Calculating referenced objects"))
             {
                 EndProgressBar();
                 return BuildPipelineCodes.Canceled;
             }
-            output.referencedObjects = BundleBuildInterface.GetPlayerDependenciesForObjects(output.includedObjects, settings.target, settings.typeDB);
+            output.referencedObjects = new List<ObjectIdentifier>(BundleBuildInterface.GetPlayerDependenciesForObjects(output.includedObjects.ToArray(), settings.target, settings.typeDB));
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, output))
                 BuildLogger.LogWarning("Unable to cache AssetDependency results for asset '{0}'.", asset);

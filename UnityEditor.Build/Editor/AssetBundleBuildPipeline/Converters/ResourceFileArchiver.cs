@@ -9,7 +9,7 @@ using BundleCRCMap = System.Collections.Generic.Dictionary<string, uint>;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class ResourceFileArchiver : ADataConverter<List<BuildOutput.Result>, SceneResourceMap, BuildCompression, string, BundleCRCMap>
+    public class ResourceFileArchiver : ADataConverter<List<WriteResult>, SceneResourceMap, BuildCompression, string, BundleCRCMap>
     {
         public override uint Version { get { return 1; } }
 
@@ -26,7 +26,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, fileHashes, compression);
         }
 
-        public override BuildPipelineCodes Convert(List<BuildOutput.Result> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out BundleCRCMap output)
+        public override BuildPipelineCodes Convert(List<WriteResult> writenData, SceneResourceMap sceneResources, BuildCompression compression, string outputFolder, out BundleCRCMap output)
         {
             StartProgressBar("Archiving Resource Files", writenData.Count);
             output = new BundleCRCMap();
@@ -87,7 +87,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         private bool TrySaveToCache(Hash128 hash, string filePath, uint output, string outputFolder)
         {
-            return BuildCache.SaveCachedResultsAndArtifacts(hash, output, new [] { filePath }, outputFolder);
+            return BuildCache.SaveCachedResultsAndArtifacts(hash, output, new[] { filePath }, outputFolder);
         }
     }
 }

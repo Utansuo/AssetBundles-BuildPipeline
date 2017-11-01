@@ -60,13 +60,13 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         }
 
                         // Convert Scene Dependency Information to Asset Load Information
-                        var assetInfo = new BuildCommandSet.AssetLoadInfo();
+                        var assetInfo = new AssetLoadInfo();
                         assetInfo.asset = asset.asset;
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
                         assetInfo.processedScene = sceneInfo.processedScene;
-                        assetInfo.includedObjects = new ObjectIdentifier[0];
-                        assetInfo.referencedObjects = sceneInfo.referencedObjects.ToArray();
-                        
+                        assetInfo.includedObjects = new List<ObjectIdentifier>();
+                        assetInfo.referencedObjects = sceneInfo.referencedObjects.ToList();
+
                         // Add generated scene information to BuildDependencyInformation
                         output.sceneResourceFiles.Add(asset.asset, sceneInfo.resourceFiles.ToArray());
                         output.sceneUsageTags.Add(asset.asset, sceneInfo.globalUsage);
@@ -75,7 +75,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         // Add the current bundle as dependency[0]
                         List<string> bundles = new List<string>();
                         bundles.Add(bundle.assetBundleName);
-                        output.assetToBundles.Add(asset.asset , bundles);
+                        output.assetToBundles.Add(asset.asset, bundles);
 
                         // Add the current asset to the list of assets for a bundle
                         List<GUID> bundleAssets;
@@ -91,7 +91,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         }
 
                         // Get Asset Dependency Information
-                        BuildCommandSet.AssetLoadInfo assetInfo;
+                        AssetLoadInfo assetInfo;
                         BuildPipelineCodes errorCode = m_AssetDependency.Convert(asset.asset, settings, out assetInfo);
                         if (errorCode < BuildPipelineCodes.Success)
                         {
