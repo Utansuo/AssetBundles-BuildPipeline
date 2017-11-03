@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEditor.Experimental.Build;
 using UnityEditor.Experimental.Build.AssetBundle;
 
 namespace UnityEditor.Build
@@ -11,10 +12,14 @@ namespace UnityEditor.Build
         public Dictionary<GUID, AssetLoadInfo> assetInfo = new Dictionary<GUID, AssetLoadInfo>();
         public Dictionary<GUID, SceneDependencyInfo> sceneInfo = new Dictionary<GUID, SceneDependencyInfo>();
 
+        // Usage Tags
+        public BuildUsageTagGlobal buildGlobalUsage;
+
         // Lookup maps for fast dependency calculation
         public Dictionary<GUID, List<string>> assetToBundles = new Dictionary<GUID, List<string>>();
         public Dictionary<string, List<GUID>> bundleToAssets = new Dictionary<string, List<GUID>>();
 
+        // Virtual assets for advanced object deduplication
         public HashSet<GUID> virtualAssets = new HashSet<GUID>();
         public Dictionary<ObjectIdentifier, GUID> objectToVirtualAsset = new Dictionary<ObjectIdentifier, GUID>();
     }

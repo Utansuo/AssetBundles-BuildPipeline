@@ -63,6 +63,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                         // Add generated scene information to BuildDependencyInformation
                         output.sceneInfo.Add(asset.asset, sceneInfo);
 
+                        // Add usage tags to BuildDependencyInfo
+                        output.buildGlobalUsage |= sceneInfo.globalUsage;
+
                         // Add the current bundle as dependency[0]
                         List<string> bundles = new List<string>();
                         bundles.Add(bundle.assetBundleName);

@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class BuildWriteWriter : ADataConverter<BuildWriteInfo, BuildSettings, BuildResultInfo>
+    public class BuildWriteWriter : ADataConverter<BuildWriteInfo, BuildSettings, BuildUsageTagGlobal, BuildResultInfo>
     {
         //private Dictionary<string, List<string>> m_NameToDependencies = new Dictionary<string, List<string>>();
         //private Dictionary<GUID, string> m_AssetToHash = new Dictionary<GUID, string>();
@@ -70,7 +70,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return path;
         }
 
-        public override BuildPipelineCodes Convert(BuildWriteInfo writeInfo, BuildSettings settings, out BuildResultInfo output)
+        public override BuildPipelineCodes Convert(BuildWriteInfo writeInfo, BuildSettings settings, BuildUsageTagGlobal globalUsage, out BuildResultInfo output)
         {
             var allCommands = new List<WriteCommand>(writeInfo.assetBundles.Values.Select(x => x.command));
             allCommands.AddRange(writeInfo.sceneBundles.Values.SelectMany(x => x.Select(y => y.command)));
@@ -79,7 +79,6 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             //CacheDataForCommandSet(commandSet);
 
             output = new BuildResultInfo();
-            BuildUsageTagGlobal globalUsage = new BuildUsageTagGlobal();  // TODO: Pass this in?
 
             int count = 1;
             foreach (var bundle in writeInfo.assetBundles)

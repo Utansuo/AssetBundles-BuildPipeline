@@ -179,6 +179,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
             op.command.serializeObjects = new List<SerializationInfo>();
             op.preloadObjects = new List<ObjectIdentifier>();
+            long identifier = 3; // Scenes use linear id assignment
             foreach (var reference in sceneInfo.referencedObjects)
             {
                 if (!buildInfo.assetInfo.ContainsKey(reference.guid) && reference.filePath != kUnityDefaultResourcePath)
@@ -186,7 +187,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     op.command.serializeObjects.Add(new SerializationInfo
                     {
                         serializationObject = reference,
-                        serializationIndex = SerializationIndexFromObjectIdentifier(reference)
+                        serializationIndex = identifier++
                     });
                 }
                 else
@@ -204,7 +205,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             var md4 = MD4.Create();
             var bytes = Encoding.ASCII.GetBytes(name);
             md4.TransformFinalBlock(bytes, 0, bytes.Length);
-            return "CAB-" + BitConverter.ToString(md4.Hash, 0).Replace("-", "");
+            return "CAB-" + BitConverter.ToString(md4.Hash, 0).ToLower().Replace("-", "");
         }
 
         public static long SerializationIndexFromObjectIdentifier(ObjectIdentifier objectID)

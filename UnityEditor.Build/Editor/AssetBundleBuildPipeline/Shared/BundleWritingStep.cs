@@ -14,13 +14,13 @@ namespace UnityEditor.Build.AssetBundle.Shared
 
             // Write out resource files
             var commandSetWriter = new BuildWriteWriter(useCache, progressTracker);
-            var exitCode = commandSetWriter.Convert(writeInfo, settings, out result);
+            var exitCode = commandSetWriter.Convert(writeInfo, settings, buildInfo.buildGlobalUsage, out result);
             if (exitCode < BuildPipelineCodes.Success)
                 return exitCode;
 
             // Archive and compress resource files
             var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
-            exitCode = resourceArchiver.Convert(result, null, compression, outputFolder, out result.bundleCRCs);
+            exitCode = resourceArchiver.Convert(result, buildInfo, compression, outputFolder, out result.bundleCRCs);
             if (exitCode < BuildPipelineCodes.Success)
                 return exitCode;
 
