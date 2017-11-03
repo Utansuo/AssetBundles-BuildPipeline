@@ -7,13 +7,13 @@ using UnityEngine;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class SharedObjectProcessor : ADataConverter<BuildDependencyInformation, BuildSettings, bool, BuildDependencyInformation>
+    public class SharedObjectProcessor : ADataConverter<BuildDependencyInfo, BuildSettings, bool, BuildDependencyInfo>
     {
         public override uint Version { get { return 1; } }
 
         public SharedObjectProcessor(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        private Hash128 CalculateInputHash(BuildDependencyInformation input)
+        private Hash128 CalculateInputHash(BuildDependencyInfo input)
         {
             if (!UseCache)
                 return new Hash128();
@@ -21,7 +21,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, input);
         }
 
-        public override BuildPipelineCodes Convert(BuildDependencyInformation input, BuildSettings settings, bool aggressive, out BuildDependencyInformation output)
+        public override BuildPipelineCodes Convert(BuildDependencyInfo input, BuildSettings settings, bool aggressive, out BuildDependencyInfo output)
         {
             StartProgressBar("Generated shared object bundles", 3);
 
@@ -44,7 +44,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             // Generate mapping of each object to the bundles it would be used by
             var objectToBundles = new Dictionary<ObjectIdentifier, HashSet<string>>();
             var objectToAssets = new Dictionary<ObjectIdentifier, HashSet<GUID>>();
-            foreach (var asset in input.assetLoadInfo.Values)
+            foreach (var asset in input.assetInfo.Values)
             {
                 var dependencies = input.assetToBundles[asset.asset];
 
@@ -69,7 +69,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     if (!aggressive && input.assetToBundles.ContainsKey(referenceID.guid))
                         continue;
 
-                    if (referenceID.filePath == CommandSetProcessor.kUnityDefaultResourcePath)
+                    if (referenceID.filePath == BuildWriteProcessor.kUnityDefaultResourcePath)
                         continue;
 
                     HashSet<string> bundles;
@@ -122,7 +122,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 assetInfo.includedObjects.Sort((x, y) => { if (x < y) return -1; if (x > y) return 1; return 0; });
 
                 // Add new AssetLoadInfo for virtual asset
-                output.assetLoadInfo.Add(assetInfo.asset, assetInfo);
+                output.assetInfo.Add(assetInfo.asset, assetInfo);
                 var assetBundles = new List<string>();
                 assetBundles.Add(assetInfo.address);
 
@@ -159,7 +159,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             // Generate Shared Bundle Build Dependencies
             foreach (var virtualAsset in output.virtualAssets)
             {
-                var assetInfo = output.assetLoadInfo[virtualAsset];
+                var assetInfo = output.assetInfo[virtualAsset];
                 var dependencies = output.assetToBundles[virtualAsset];
 
                 var references = BundleBuildInterface.GetPlayerDependenciesForObjects(assetInfo.includedObjects.ToArray(), settings.target, settings.typeDB);

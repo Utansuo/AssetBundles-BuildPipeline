@@ -8,19 +8,19 @@ namespace UnityEditor.Build.AssetBundle.Shared
     {
         public static int StepCount { get { return 2; } }
 
-        public static BuildPipelineCodes Build(BuildSettings settings, BuildCompression compression, string outputFolder, BuildDependencyInformation buildInfo, BuildCommandSet commandSet, out BundleBuildResult result, bool useCache = false, BuildProgressTracker progressTracker = null)
+        public static BuildPipelineCodes Build(BuildSettings settings, BuildCompression compression, string outputFolder, BuildDependencyInfo buildInfo, BuildWriteInfo writeInfo, out BuildResultInfo result, bool useCache = false, BuildProgressTracker progressTracker = null)
         {
-            result = new BundleBuildResult();
+            result = new BuildResultInfo();
 
             // Write out resource files
-            var commandSetWriter = new CommandSetWriter(useCache, progressTracker);
-            var exitCode = commandSetWriter.Convert(commandSet, settings, out result.bundleDetails);
+            var commandSetWriter = new BuildWriteWriter(useCache, progressTracker);
+            var exitCode = commandSetWriter.Convert(writeInfo, settings, out result);
             if (exitCode < BuildPipelineCodes.Success)
                 return exitCode;
 
             // Archive and compress resource files
             var resourceArchiver = new ResourceFileArchiver(useCache, progressTracker);
-            exitCode = resourceArchiver.Convert(result.bundleDetails, buildInfo.sceneResourceFiles, compression, outputFolder, out result.bundleCRCs);
+            exitCode = resourceArchiver.Convert(result, null, compression, outputFolder, out result.bundleCRCs);
             if (exitCode < BuildPipelineCodes.Success)
                 return exitCode;
 

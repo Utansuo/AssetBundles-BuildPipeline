@@ -8,7 +8,7 @@ namespace UnityEditor.Build.AssetBundle.Shared
     {
         public static int StepCount { get { return 2; } }
 
-        public static BuildPipelineCodes Build(BuildInput input, BuildSettings settings, out BuildDependencyInformation buildInfo, bool useCache = false, BuildProgressTracker progressTracker = null)
+        public static BuildPipelineCodes Build(BuildInput input, BuildSettings settings, out BuildDependencyInfo buildInfo, bool useCache = false, BuildProgressTracker progressTracker = null)
         {
             buildInfo = null;
 

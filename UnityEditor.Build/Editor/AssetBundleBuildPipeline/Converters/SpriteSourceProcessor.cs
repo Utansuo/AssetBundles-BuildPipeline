@@ -58,9 +58,6 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             }
             foreach (var assetInfo in output)
             {
-                if (!string.IsNullOrEmpty(assetInfo.Value.processedScene))
-                    continue;
-
                 foreach (var reference in assetInfo.Value.referencedObjects)
                 {
                     int refCount = 0;

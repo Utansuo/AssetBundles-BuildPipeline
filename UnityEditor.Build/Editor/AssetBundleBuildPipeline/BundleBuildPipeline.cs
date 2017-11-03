@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using UnityEditor.Build.AssetBundle.DataTypes;
 using UnityEditor.Build.AssetBundle.Shared;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build.AssetBundle;
@@ -14,11 +16,11 @@ namespace UnityEditor.Build.AssetBundle
         public const string kDefaultOutputPath = "AssetBundles";
 
         // TODO: Replace with calls to UnityEditor.Build.BuildPipelineInterfaces once i make it more generic & public
-        public static Func<BuildDependencyInformation, object, BuildPipelineCodes> PostBuildDependency;
-        // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
-        public static Func<BuildCommandSet, object, BuildPipelineCodes> PostBuildPacking;
+        public static Func<BuildDependencyInfo, object, BuildPipelineCodes> PostBuildDependency;
 
-        public static Func<BundleBuildResult, object, BuildPipelineCodes> PostBuildWriting;
+        public static Func<BuildDependencyInfo, BuildWriteInfo, object, BuildPipelineCodes> PostBuildPacking;
+
+        public static Func<BuildDependencyInfo, BuildWriteInfo, BuildResultInfo, object, BuildPipelineCodes> PostBuildWriting;
 
         public static BuildSettings GenerateBundleBuildSettings(TypeDB typeDB)
         {
@@ -48,24 +50,24 @@ namespace UnityEditor.Build.AssetBundle
             return settings;
         }
 
-        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BundleBuildResult result, object callbackUserData = null, bool useCache = true)
+        public static BuildPipelineCodes BuildAssetBundles(BuildInput input, BuildSettings settings, BuildCompression compression, string outputFolder, out BuildResultInfo result, object callbackUserData = null, bool useCache = true)
         {
             var buildTimer = new Stopwatch();
             buildTimer.Start();
 
             if (ProjectValidator.HasDirtyScenes())
             {
-                result = new BundleBuildResult();
+                result = new BuildResultInfo();
                 buildTimer.Stop();
                 BuildLogger.LogError("Build Asset Bundles failed in: {0:c}. Error: {1}.", buildTimer.Elapsed, BuildPipelineCodes.UnsavedChanges);
                 return BuildPipelineCodes.UnsavedChanges;
             }
-            
+
             var exitCode = BuildPipelineCodes.Success;
-            result = new BundleBuildResult();
+            result = new BuildResultInfo();
 
             AssetDatabase.SaveAssets();
-                
+
             // TODO: Until new AssetDatabaseV2 is online, we need to switch platforms
             EditorUserBuildSettings.SwitchActiveBuildTarget(settings.group, settings.target);
 
@@ -74,7 +76,7 @@ namespace UnityEditor.Build.AssetBundle
             {
                 using (var buildCleanup = new BuildStateCleanup(true, kTempBundleBuildPath))
                 {
-                    BuildDependencyInformation buildInfo;
+                    BuildDependencyInfo buildInfo;
                     exitCode = BundleDependencyStep.Build(input, settings, out buildInfo, useCache, progressTracker);
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
@@ -86,26 +88,26 @@ namespace UnityEditor.Build.AssetBundle
                             return exitCode;
                     }
 
-                    BuildCommandSet commandSet;
-                    exitCode = BundlePackingStep.Build(buildInfo, out commandSet, useCache, progressTracker);
+                    BuildWriteInfo writeInfo;
+                    exitCode = BundlePackingStep.Build(buildInfo, out writeInfo, useCache, progressTracker);
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
 
                     if (PostBuildPacking != null)
                     {
                         // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
-                        exitCode = PostBuildPacking.Invoke(commandSet, callbackUserData);
+                        exitCode = PostBuildPacking.Invoke(buildInfo, writeInfo, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }
 
-                    exitCode = BundleWritingStep.Build(settings, compression, outputFolder, buildInfo, commandSet, out result, useCache, progressTracker);
+                    exitCode = BundleWritingStep.Build(settings, compression, outputFolder, buildInfo, writeInfo, out result, useCache, progressTracker);
                     if (exitCode < BuildPipelineCodes.Success)
                         return exitCode;
 
                     if (PostBuildWriting != null)
                     {
-                        exitCode = PostBuildWriting.Invoke(result, callbackUserData);
+                        exitCode = PostBuildWriting.Invoke(buildInfo, writeInfo, result, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;
                     }

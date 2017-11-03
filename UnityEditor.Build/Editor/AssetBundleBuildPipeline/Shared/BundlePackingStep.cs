@@ -1,6 +1,7 @@
-﻿using UnityEditor.Build.AssetBundle.DataConverters;
+﻿using System.Collections.Generic;
+using UnityEditor.Build.AssetBundle.DataConverters;
+using UnityEditor.Build.AssetBundle.DataTypes;
 using UnityEditor.Build.Utilities;
-using UnityEditor.Experimental.Build.AssetBundle;
 
 namespace UnityEditor.Build.AssetBundle.Shared
 {
@@ -8,19 +9,19 @@ namespace UnityEditor.Build.AssetBundle.Shared
     {
         public static int StepCount { get { return 2; } }
 
-        public static BuildPipelineCodes Build(BuildDependencyInformation buildInfo, out BuildCommandSet commandSet, bool useCache = false, BuildProgressTracker progressTracker = null)
+        public static BuildPipelineCodes Build(BuildDependencyInfo buildInfo, out BuildWriteInfo writeInfo, bool useCache = false, BuildProgressTracker progressTracker = null)
         {
-            commandSet = new BuildCommandSet();
+            writeInfo = new BuildWriteInfo();
 
             // Strip out sprite source textures if nothing references them directly
             var spriteSourceProcessor = new SpriteSourceProcessor(useCache, progressTracker);
-            var exitCode = spriteSourceProcessor.Convert(buildInfo.assetLoadInfo, out buildInfo.assetLoadInfo);
+            var exitCode = spriteSourceProcessor.Convert(buildInfo.assetInfo, out buildInfo.assetInfo);
             if (exitCode < BuildPipelineCodes.Success)
                 return exitCode;
 
             // Generate the commandSet from the calculated dependency information
-            var commandSetProcessor = new CommandSetProcessor(useCache, progressTracker);
-            exitCode = commandSetProcessor.Convert(buildInfo, out commandSet);
+            var commandSetProcessor = new BuildWriteProcessor(useCache, progressTracker);
+            exitCode = commandSetProcessor.Convert(buildInfo, out writeInfo);
             if (exitCode < BuildPipelineCodes.Success)
                 return exitCode;
 

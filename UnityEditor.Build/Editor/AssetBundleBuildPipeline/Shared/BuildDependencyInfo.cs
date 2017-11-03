@@ -1,19 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEditor.Experimental.Build;
 using UnityEditor.Experimental.Build.AssetBundle;
 
 namespace UnityEditor.Build
 {
     [Serializable]
-    public class BuildDependencyInformation
+    public class BuildDependencyInfo
     {
-        // AssetLoadInfo for all scenes and assets
-        public Dictionary<GUID, AssetLoadInfo> assetLoadInfo = new Dictionary<GUID, AssetLoadInfo>();
-
-        // Scene specific dependency information
-        public Dictionary<GUID, ResourceFile[]> sceneResourceFiles = new Dictionary<GUID, ResourceFile[]>();
-        public Dictionary<GUID, BuildUsageTagGlobal> sceneUsageTags = new Dictionary<GUID, BuildUsageTagGlobal>();
+        // AssetLoadInfo for all assets
+        public Dictionary<GUID, AssetLoadInfo> assetInfo = new Dictionary<GUID, AssetLoadInfo>();
+        public Dictionary<GUID, SceneDependencyInfo> sceneInfo = new Dictionary<GUID, SceneDependencyInfo>();
 
         // Lookup maps for fast dependency calculation
         public Dictionary<GUID, List<string>> assetToBundles = new Dictionary<GUID, List<string>>();
