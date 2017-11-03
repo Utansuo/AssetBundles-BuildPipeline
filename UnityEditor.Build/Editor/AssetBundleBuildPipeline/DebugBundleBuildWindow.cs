@@ -83,11 +83,28 @@ namespace UnityEditor.Build
 
             GUILayout.FlexibleSpace();
 
+            if (GUILayout.Button("Open Output"))
+                OpenOutputFolder();
             if (GUILayout.Button("Build Bundles"))
                 BuildAssetBundles();
             EditorGUILayout.EndHorizontal();
 
             m_SerializedObject.ApplyModifiedProperties();
+        }
+
+        private void OpenOutputFolder()
+        {
+#if UNITY_EDITOR_WIN
+            var folder = new DirectoryInfo(m_Settings.outputPath);
+            if (!folder.Exists)
+                return;
+            try
+            {
+                Process.Start("explorer.exe", folder.FullName);
+            }
+            catch
+            { }
+#endif
         }
 
         private void PickOutputFolder()

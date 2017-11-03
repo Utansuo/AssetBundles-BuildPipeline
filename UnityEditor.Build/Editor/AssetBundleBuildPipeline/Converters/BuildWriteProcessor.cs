@@ -181,7 +181,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             op.preloadObjects = new List<ObjectIdentifier>();
             foreach (var reference in sceneInfo.referencedObjects)
             {
-                if (!buildInfo.assetInfo.ContainsKey(reference.guid))
+                if (!buildInfo.assetInfo.ContainsKey(reference.guid) && reference.filePath != kUnityDefaultResourcePath)
                 {
                     op.command.serializeObjects.Add(new SerializationInfo
                     {
@@ -193,7 +193,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     op.preloadObjects.Add(reference);
             }
 
-            // TODO: Add this functionality: Unique to scenes, we point at sharedAssets of a previously built scene in this set as a dependency to reduce object duplication. 
+            // TODO: Add this functionality:
+            // Unique to scenes, we point at sharedAssets of a previously built scene in this set as a dependency to reduce object duplication. 
 
             return op;
         }
@@ -203,7 +204,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             var md4 = MD4.Create();
             var bytes = Encoding.ASCII.GetBytes(name);
             md4.TransformFinalBlock(bytes, 0, bytes.Length);
-            return "CAB-" + BitConverter.ToString(md4.Hash, 0);
+            return "CAB-" + BitConverter.ToString(md4.Hash, 0).Replace("-", "");
         }
 
         public static long SerializationIndexFromObjectIdentifier(ObjectIdentifier objectID)

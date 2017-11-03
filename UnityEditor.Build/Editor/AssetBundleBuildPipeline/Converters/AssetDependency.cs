@@ -16,7 +16,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
         {
             // TODO: Maybe move this to AssetDatabase or Utility class?
             var path = AssetDatabase.GUIDToAssetPath(asset.ToString());
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            if (string.IsNullOrEmpty(path) || path.EndsWith(".unity") || !File.Exists(path))
                 return false;
             return true;
         }
