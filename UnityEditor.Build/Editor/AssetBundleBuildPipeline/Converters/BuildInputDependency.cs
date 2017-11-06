@@ -144,6 +144,24 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 }
             }
 
+            // Generate the explicit scene to bundle dependency lookup
+            foreach (var scene in output.sceneInfo)
+            {
+                var assetBundles = output.assetToBundles[scene.Key];
+                foreach (var reference in scene.Value.referencedObjects)
+                {
+                    List<string> refBundles;
+                    if (!output.assetToBundles.TryGetValue(reference.guid, out refBundles))
+                        continue;
+
+                    var dependency = refBundles[0];
+                    if (assetBundles.Contains(dependency))
+                        continue;
+
+                    assetBundles.Add(dependency);
+                }
+            }
+
             if (!EndProgressBar())
                 return BuildPipelineCodes.Canceled;
             return BuildPipelineCodes.Success;

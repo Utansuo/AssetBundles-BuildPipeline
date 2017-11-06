@@ -104,6 +104,16 @@ namespace UnityEditor.Build
             }
             catch
             { }
+#elif UNITY_EDITOR_MAC
+            var folder = new DirectoryInfo(m_Settings.outputPath);
+            if (!folder.Exists)
+                return;
+            try
+            {
+                Process.Start("open", string.Format("-R \"{0}\"", folder.FullName));
+            }
+            catch
+            { }
 #endif
         }
 

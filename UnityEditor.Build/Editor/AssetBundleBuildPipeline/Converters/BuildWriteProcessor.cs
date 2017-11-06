@@ -122,6 +122,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     serializeObjects.Add(reference);
                 }
             }
+            dependencies.Remove(bundleName); // Don't include self as dependency
 
             op.info.bundleDependencies = dependencies.OrderBy(x => x).ToList();
             op.command.dependencies = op.info.bundleDependencies.Select(x => string.Format("archive:/{0}/{0}", GenerateInternalFileName(x))).ToList();
@@ -143,7 +144,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             var dependencies = new HashSet<string>();
             foreach (var scene in scenes)
             {
-                var op = CreateSceneDataWriteOperation(bundleFileName, scene, buildInfo);
+                var op = CreateSceneDataWriteOperation(bundleName, bundleFileName, scene, buildInfo);
                 ops.Add((SceneDataWriteOperation)op);
 
                 sceneLoadInfo.Add(new SceneLoadInfo
@@ -154,6 +155,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                 dependencies.UnionWith(buildInfo.assetToBundles[scene]);
             }
+            dependencies.Remove(bundleName); // Don't include self as dependency
 
             // First write op must be SceneBundleWriteOperation
             var bundleOp = new SceneBundleWriteOperation(ops[0]);
@@ -166,7 +168,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return ops.Cast<IWriteOperation>().ToList();
         }
 
-        private IWriteOperation CreateSceneDataWriteOperation(string bundleFileName, GUID scene, BuildDependencyInfo buildInfo)
+        private IWriteOperation CreateSceneDataWriteOperation(string bundleName, string bundleFileName, GUID scene, BuildDependencyInfo buildInfo)
         {
             var sceneInfo = buildInfo.sceneInfo[scene];
 
@@ -175,7 +177,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             op.processedScene = sceneInfo.processedScene;
             op.command.fileName = GenerateInternalFileName(sceneInfo.scene) + ".sharedAssets";
             op.command.internalName = string.Format("archive:/{0}/{1}", bundleFileName, op.command.fileName);
-            op.command.dependencies = buildInfo.assetToBundles[scene].OrderBy(x => x).Select(x => string.Format("archive:/{0}/{0}", GenerateInternalFileName(x))).ToList();
+            // TODO: Rethink the way we do dependencies here, won't work for PlayerData or Raw Data.
+            op.command.dependencies = buildInfo.assetToBundles[scene].OrderBy(x => x).Where(x => x != bundleName).Select(x => string.Format("archive:/{0}/{0}", GenerateInternalFileName(x))).ToList();
 
             op.command.serializeObjects = new List<SerializationInfo>();
             op.preloadObjects = new List<ObjectIdentifier>();
