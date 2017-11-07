@@ -140,7 +140,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         private List<IWriteOperation> CreateSceneBundleWriteOperations(string bundleName, List<GUID> scenes, BuildDependencyInfo buildInfo)
         {
-            var bundleFileName = GenerateInternalFileName(bundleName);
+            // The 'Folder' we mount asset bundles to is the same as the internal file name of the first file in the archive
+            var bundleFileName = GenerateInternalFileName(AssetDatabase.GUIDToAssetPath(scenes[0].ToString()));
 
             var ops = new List<SceneDataWriteOperation>();
             var sceneLoadInfo = new List<SceneLoadInfo>();
@@ -150,11 +151,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 var op = CreateSceneDataWriteOperation(bundleName, bundleFileName, scene, buildInfo);
                 ops.Add((SceneDataWriteOperation)op);
 
+                var scenePath = AssetDatabase.GUIDToAssetPath(scene.ToString());
                 sceneLoadInfo.Add(new SceneLoadInfo
                 {
                     asset = scene,
-                    address = AssetDatabase.GUIDToAssetPath(scene.ToString()),   // TODO: Need to carry over address from BuildInput
-                    internalName = GenerateInternalFileName(AssetDatabase.GUIDToAssetPath(scene.ToString()))
+                    address = scenePath,   // TODO: Need to carry over address from BuildInput
+                    internalName = GenerateInternalFileName(scenePath)
                 });
 
                 dependencies.UnionWith(buildInfo.assetToBundles[scene]);
@@ -180,6 +182,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             op.scene = sceneInfo.scene;
             op.processedScene = sceneInfo.processedScene;
             op.command.fileName = GenerateInternalFileName(sceneInfo.scene) + ".sharedAssets";
+            // TODO: This is bundle formatted internal name, we need to rethink this for PlayerData
             op.command.internalName = string.Format("archive:/{0}/{1}", bundleFileName, op.command.fileName);
             // TODO: Rethink the way we do dependencies here, assetToBundles is for bundles only, won't work for PlayerData or Raw Data.
             op.command.dependencies = buildInfo.assetToBundles[scene].OrderBy(x => x).Where(x => x != bundleName).Select(x => string.Format("archive:/{0}/{0}", GenerateInternalFileName(x))).ToList();
