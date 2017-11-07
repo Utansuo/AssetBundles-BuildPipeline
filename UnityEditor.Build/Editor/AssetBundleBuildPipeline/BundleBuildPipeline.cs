@@ -95,7 +95,6 @@ namespace UnityEditor.Build.AssetBundle
 
                     if (PostBuildPacking != null)
                     {
-                        // TODO: Callback PostBuildPacking can't modify BuildCommandSet due to pass by value...will change to class
                         exitCode = PostBuildPacking.Invoke(buildInfo, writeInfo, callbackUserData);
                         if (exitCode < BuildPipelineCodes.Success)
                             return exitCode;

@@ -27,7 +27,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         public override BuildPipelineCodes Convert(BuildDependencyInfo buildInfo, out BuildWriteInfo writeInfo)
         {
-            StartProgressBar("Generating Build Commands", buildInfo.assetInfo.Count);
+            StartProgressBar("Generating Build Commands", buildInfo.bundleToAssets.Count);
 
             Hash128 hash = CalculateInputHash(buildInfo);
             if (UseCache && BuildCache.TryLoadCachedResults(hash, out writeInfo))
@@ -40,6 +40,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             writeInfo = new BuildWriteInfo();
             foreach (var bundle in buildInfo.bundleToAssets)
             {
+                if (UpdateProgressBar("Generating Build Commands"))
+                    return BuildPipelineCodes.Canceled;
+
                 // TODO: Handle Player Data & Raw write formats
                 if (IsAssetBundle(bundle.Value))
                 {
@@ -261,15 +264,6 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 return x.serializationIndex.CompareTo(y.serializationIndex);
 
             return Compare(x.serializationObject, y.serializationObject);
-        }
-
-        private bool UpdateProgressBar(GUID guid)
-        {
-            if (ProgressTracker == null)
-                return true;
-
-            var path = AssetDatabase.GUIDToAssetPath(guid.ToString());
-            return ProgressTracker.UpdateProgress(path);
         }
     }
 }

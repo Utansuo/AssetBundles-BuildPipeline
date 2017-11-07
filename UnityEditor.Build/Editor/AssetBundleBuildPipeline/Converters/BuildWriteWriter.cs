@@ -11,55 +11,34 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 {
     public class BuildWriteWriter : ADataConverter<BuildWriteInfo, BuildSettings, BuildUsageTagGlobal, BuildResultInfo>
     {
-        //private Dictionary<string, List<string>> m_NameToDependencies = new Dictionary<string, List<string>>();
-        //private Dictionary<GUID, string> m_AssetToHash = new Dictionary<GUID, string>();
-
         public override uint Version { get { return 1; } }
 
         public BuildWriteWriter(bool useCache, IProgressTracker progressTracker) : base(useCache, progressTracker) { }
 
-        private Hash128 CalculateInputHash(IWriteOperation operation, List<IWriteOperation> writeOps, BuildSettings settings)
+        private Hash128 CalculateInputHash(IWriteOperation operation, List<WriteCommand> dependencies, BuildSettings settings, BuildUsageTagGlobal globalUsage)
         {
             if (!UseCache)
                 return new Hash128();
 
-            // NOTE: correct hash should be based off command, dependencies (internal name), settings, and asset hashes, (and usage tags, NYI)
-            // NOTE: This hashing method assumes we use a deterministic method to generate all serializationIndex
-            //var dependencies = m_NameToDependencies[command.assetBundleName];
-            //var assetHashes = new List<string>();
-            //foreach (var objectID in command.assetBundleObjects)
-            //    assetHashes.Add(m_AssetToHash[objectID.serializationObject.guid]);
+            var empty = new GUID();
+            var assets = new HashSet<GUID>();
+            var assetHashes = new List<Hash128>();
+            foreach (var objectId in operation.command.serializeObjects)
+            {
+                var guid = objectId.serializationObject.guid;
+                if (guid == empty || !assets.Add(guid))
+                    continue;
 
-            return HashingMethods.CalculateMD5Hash(Version, operation, settings);// dependencies, assetHashes, settings);
+                var path = AssetDatabase.GUIDToAssetPath(guid.ToString());
+                assetHashes.Add(AssetDatabase.GetAssetDependencyHash(path));
+            }
+
+            var sceneOp = operation as SceneDataWriteOperation;
+            if (sceneOp != null)
+                assetHashes.Add(HashingMethods.CalculateFileMD5Hash(sceneOp.processedScene));
+
+            return HashingMethods.CalculateMD5Hash(Version, operation, assetHashes, dependencies, globalUsage, settings);
         }
-
-        //private void CacheDataForCommandSet(BuildCommandSet commandSet)
-        //{
-        //    if (!UseCache)
-        //        return;
-
-        //    m_NameToDependencies.Clear();
-        //    m_AssetToHash.Clear();
-
-        //    // Generate data needed for cache hash generation
-        //    foreach (var command in commandSet.commands)
-        //    {
-        //        var dependencies = new List<string>();
-        //        m_NameToDependencies[command.assetBundleName] = dependencies;
-        //        dependencies.Add(command.assetBundleName);
-        //        foreach (var dependency in command.assetBundleDependencies)
-        //            dependencies.Add(dependency);
-
-        //        foreach (var objectID in command.assetBundleObjects)
-        //        {
-        //            if (m_AssetToHash.ContainsKey(objectID.serializationObject.guid))
-        //                continue;
-
-        //            var path = AssetDatabase.GUIDToAssetPath(objectID.serializationObject.guid.ToString());
-        //            m_AssetToHash[objectID.serializationObject.guid] = AssetDatabase.GetAssetDependencyHash(path).ToString();
-        //        }
-        //    }
-        //}
 
         private string GetBuildPath(Hash128 hash)
         {
@@ -76,7 +55,6 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             allCommands.AddRange(writeInfo.sceneBundles.Values.SelectMany(x => x.Select(y => y.command)));
 
             StartProgressBar("Writing Serialized Files", allCommands.Count);
-            //CacheDataForCommandSet(commandSet);
 
             output = new BuildResultInfo();
 
@@ -124,15 +102,16 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
         private void WriteSerialziedFiles(string bundleName, IWriteOperation op, List<WriteCommand> allCommands, BuildSettings settings, BuildUsageTagGlobal globalUsage, ref List<WriteResult> outResults)
         {
-            Hash128 hash = new Hash128();// = CalculateInputHash(op, settings);
-            //if (UseCache && BuildCache.TryLoadCachedResults(hash, out result))
-            //{
-            //    output.AddRange(result.results);
-            //    continue;
-            //}
-
+            WriteResult result;
             var dependencies = op.CalculateDependencies(allCommands);
-            var result = op.Write(GetBuildPath(hash), dependencies, settings, globalUsage);
+            Hash128 hash = CalculateInputHash(op, dependencies, settings, globalUsage);
+            if (UseCache && BuildCache.TryLoadCachedResults(hash, out result))
+            {
+                outResults.Add(result);
+                return;
+            }
+
+            result = op.Write(GetBuildPath(hash), dependencies, settings, globalUsage);
             outResults.Add(result);
 
             if (UseCache && !BuildCache.SaveCachedResults(hash, result))

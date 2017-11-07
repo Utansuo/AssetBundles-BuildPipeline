@@ -1,9 +1,8 @@
-﻿using System.Linq;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEditor.Build.Utilities;
 using UnityEditor.Experimental.Build;
 using UnityEditor.Experimental.Build.AssetBundle;
-using System;
 
 namespace UnityEditor.Build.AssetBundle.DataTypes
 {
