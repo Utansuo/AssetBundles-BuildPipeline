@@ -40,7 +40,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             writeInfo = new BuildWriteInfo();
             foreach (var bundle in buildInfo.bundleToAssets)
             {
-                if (UpdateProgressBar("Generating Build Commands"))
+                if (!UpdateProgressBar("Generating Build Commands"))
                     return BuildPipelineCodes.Canceled;
 
                 // TODO: Handle Player Data & Raw write formats
