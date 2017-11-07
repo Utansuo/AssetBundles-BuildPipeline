@@ -21,7 +21,7 @@ namespace UnityEditor.Build.AssetBundle.DataTypes
 
         public override WriteResult Write(string outputFolder, List<WriteCommand> dependencies, BuildSettings settings, BuildUsageTagGlobal globalUsage)
         {
-            return BundleBuildInterface.WriteSceneSerializedFile(outputFolder, scene, processedScene, command, dependencies, settings, globalUsage, preloadObjects, info);
+            return BundleBuildInterface.WriteSceneSerializedFile(outputFolder, scene, processedScene, command, dependencies, settings, globalUsage, preloadInfo, info);
         }
     }
 }

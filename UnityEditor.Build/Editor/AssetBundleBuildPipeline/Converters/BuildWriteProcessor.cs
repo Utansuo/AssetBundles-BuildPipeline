@@ -150,7 +150,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 sceneLoadInfo.Add(new SceneLoadInfo
                 {
                     asset = scene,
-                    address = AssetDatabase.GUIDToAssetPath(scene.ToString())   // TODO: Need to carry over address from BuildInput
+                    address = AssetDatabase.GUIDToAssetPath(scene.ToString()),   // TODO: Need to carry over address from BuildInput
+                    internalName = GenerateInternalFileName(AssetDatabase.GUIDToAssetPath(scene.ToString()))
                 });
 
                 dependencies.UnionWith(buildInfo.assetToBundles[scene]);
@@ -177,11 +178,12 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             op.processedScene = sceneInfo.processedScene;
             op.command.fileName = GenerateInternalFileName(sceneInfo.scene) + ".sharedAssets";
             op.command.internalName = string.Format("archive:/{0}/{1}", bundleFileName, op.command.fileName);
-            // TODO: Rethink the way we do dependencies here, won't work for PlayerData or Raw Data.
+            // TODO: Rethink the way we do dependencies here, assetToBundles is for bundles only, won't work for PlayerData or Raw Data.
             op.command.dependencies = buildInfo.assetToBundles[scene].OrderBy(x => x).Where(x => x != bundleName).Select(x => string.Format("archive:/{0}/{0}", GenerateInternalFileName(x))).ToList();
 
             op.command.serializeObjects = new List<SerializationInfo>();
-            op.preloadObjects = new List<ObjectIdentifier>();
+            op.preloadInfo.preloadObjects = new List<ObjectIdentifier>();
+            op.preloadInfo.explicitDataLayout = true;
             long identifier = 3; // Scenes use linear id assignment
             foreach (var reference in sceneInfo.referencedObjects)
             {
@@ -194,7 +196,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                     });
                 }
                 else
-                    op.preloadObjects.Add(reference);
+                    op.preloadInfo.preloadObjects.Add(reference);
             }
 
             // TODO: Add this functionality:

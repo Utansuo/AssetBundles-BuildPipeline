@@ -60,7 +60,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                             return errorCode;
                         }
 
-                        // Add generated scene information to BuildDependencyInformation
+                        // Add generated scene information to BuildDependencyInfo
                         output.sceneInfo.Add(asset.asset, sceneInfo);
 
                         // Add usage tags to BuildDependencyInfo
@@ -95,8 +95,9 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
 
                         // Convert Asset Dependency Information to Asset Load Information
                         assetInfo.address = string.IsNullOrEmpty(asset.address) ? AssetDatabase.GUIDToAssetPath(asset.asset.ToString()) : asset.address;
+                        assetInfo.explicitDataLayout = true;
 
-                        // Add generated scene information to BuildDependencyInformation
+                        // Add generated asset information to BuildDependencyInfo
                         output.assetInfo.Add(asset.asset, assetInfo);
 
                         // Add the current bundle as dependency[0]
