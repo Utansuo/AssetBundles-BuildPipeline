@@ -166,6 +166,8 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             // First write op must be SceneBundleWriteOperation
             var bundleOp = new SceneBundleWriteOperation(ops[0]);
             ops[0] = bundleOp;
+            foreach (var serializeObj in bundleOp.command.serializeObjects)
+                serializeObj.serializationIndex++; // Shift by 1 to account for asset bundle object
 
             bundleOp.info.bundleName = bundleName;
             bundleOp.info.bundleScenes = sceneLoadInfo;
@@ -190,7 +192,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             op.command.serializeObjects = new List<SerializationInfo>();
             op.preloadInfo.preloadObjects = new List<ObjectIdentifier>();
             op.preloadInfo.explicitDataLayout = true;
-            long identifier = 3; // Scenes use linear id assignment
+            long identifier = 2; // Scenes use linear id assignment
             foreach (var reference in sceneInfo.referencedObjects)
             {
                 if (!buildInfo.assetInfo.ContainsKey(reference.guid) && reference.filePath != kUnityDefaultResourcePath)
