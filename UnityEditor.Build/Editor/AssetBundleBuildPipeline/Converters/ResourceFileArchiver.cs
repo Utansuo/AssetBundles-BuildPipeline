@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace UnityEditor.Build.AssetBundle.DataConverters
 {
-    public class ResourceFileArchiver : ADataConverter<BuildResultInfo, BuildDependencyInfo, BuildCompression, string, BundleCRCMap>
+    public class ResourceFileArchiver : ADataConverter<BuildResultInfo, BuildCompression, string, BundleCRCMap>
     {
         public override uint Version { get { return 1; } }
 
@@ -26,7 +26,7 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
             return HashingMethods.CalculateMD5Hash(Version, fileHashes, compression);
         }
 
-        public override BuildPipelineCodes Convert(BuildResultInfo resultInfo, BuildDependencyInfo buildInfo, BuildCompression compression, string outputFolder, out BundleCRCMap output)
+        public override BuildPipelineCodes Convert(BuildResultInfo resultInfo, BuildCompression compression, string outputFolder, out BundleCRCMap output)
         {
             StartProgressBar("Archiving Resource Files", resultInfo.bundleResults.Count);
             output = new BundleCRCMap();
@@ -40,14 +40,6 @@ namespace UnityEditor.Build.AssetBundle.DataConverters
                 }
 
                 var resourceFiles = new List<ResourceFile>(bundle.Value.SelectMany(x => x.resourceFiles));
-                foreach (var asset in buildInfo.bundleToAssets[bundle.Key])
-                {
-                    SceneDependencyInfo sceneInfo;
-                    if (!buildInfo.sceneInfo.TryGetValue(asset, out sceneInfo))
-                        continue;
-                    resourceFiles.AddRange(sceneInfo.resourceFiles);
-                }
-
                 var filePath = string.Format("{0}/{1}", outputFolder, bundle.Key);
 
                 uint crc;
